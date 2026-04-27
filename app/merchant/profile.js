@@ -1,0 +1,412 @@
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ViewShot from 'react-native-view-shot';
+
+const BASE_URL = 'http://10.194.216.149:8000';
+
+/* ─────────────────────────────────────────────
+   SUB-COMPONENTS
+───────────────────────────────────────────── */
+const NavBtn = ({ icon, label, onPress, active }) => (
+  <TouchableOpacity style={styles.navTab} onPress={onPress} activeOpacity={0.7}>
+    <Ionicons name={icon} size={22} color={active ? '#2F5D50' : '#bbb'} />
+    <Text style={[styles.navLabel, active && { color: '#2F5D50' }]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const Stat = ({ label, value, icon }) => (
+  <View style={styles.statBox}>
+    <Ionicons name={icon} size={20} color="#2F5D50" style={{ marginBottom: 4 }} />
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </View>
+);
+
+const Setting = ({ icon, text, onPress, color = '#2F5D50', border = true }) => (
+  <TouchableOpacity
+    style={[styles.settingRow, !border && { borderBottomWidth: 0 }]}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <View style={[styles.settingIconBox, { backgroundColor: color + '18' }]}>
+      <Ionicons name={icon} size={18} color={color} />
+    </View>
+    <Text style={[styles.settingText, { color }]}>{text}</Text>
+    <Ionicons name="chevron-forward" size={16} color={color + '80'} style={{ marginLeft: 'auto' }} />
+  </TouchableOpacity>
+);
+
+const SupportRow = ({ icon, title, subtitle, onPress }) => (
+  <TouchableOpacity style={styles.supportRow} onPress={onPress} activeOpacity={0.7}>
+    <View style={styles.supportIconBox}>
+      <Ionicons name={icon} size={20} color="#2F5D50" />
+    </View>
+    <View style={{ marginLeft: 12, flex: 1 }}>
+      <Text style={styles.supportTitle}>{title}</Text>
+      <Text style={styles.supportSub}>{subtitle}</Text>
+    </View>
+    <Ionicons name="chevron-forward" size={16} color="#ccc" />
+  </TouchableOpacity>
+);
+
+const QRModal = ({ visible, onClose, shop, onDownload, viewRef }) => (
+  <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <View style={styles.qrOverlay}>
+      <View style={styles.qrModalCard}>
+        <ViewShot ref={viewRef} options={{ format: 'png', quality: 1 }}>
+          <View style={styles.qrPrintable}>
+            <Ionicons name="storefront" size={40} color="#2F5D50" />
+            <Text style={styles.qrTitle}>Scan to visit our shop</Text>
+            <Text style={styles.qrShopName}>{shop?.name}</Text>
+            <View style={styles.qrBox}>
+              <QRCode value={`https://dukan.app/shop/${shop?.id}`} size={180} color="#1a1a1a" backgroundColor="#fff" />
+            </View>
+            <Text style={styles.qrFooter}>Powered by Dukan · Shop Smart</Text>
+          </View>
+        </ViewShot>
+        {/* Fixed: Replaced <div> with <View> */}
+        <View style={styles.qrActions}>
+          <TouchableOpacity style={styles.qrDownloadBtn} onPress={onDownload} activeOpacity={0.85}>
+            <Ionicons name="share-social-outline" size={18} color="#fff" />
+            <Text style={styles.qrDownloadText}>Share QR Code</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.qrCloseBtn} onPress={onClose} activeOpacity={0.7}>
+            <Text style={styles.qrCloseText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+);
+
+/* ─────────────────────────────────────────────
+   MAIN SCREEN
+───────────────────────────────────────────── */
+export default function MerchantProfile() {
+  const router = useRouter();
+  const viewRef = useRef(null);
+
+  const [data, setData] = useState({ 
+    shop: null, 
+    media: [], 
+    stats: null, 
+    plan: null, 
+    referral_code: '',
+    referral_count: 0 
+  });
+
+  const [ui, setUI] = useState({
+    loading: true,
+    refreshing: false,
+    upgrading: false,
+    showUpgrade: false,
+    showQR: false,
+  });
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const user_id = await AsyncStorage.getItem('user_id');
+      if (!user_id) return;
+      const res = await fetch(`${BASE_URL}/api/merchant/dashboard/${user_id}/`);
+      const json = await res.json();
+      setData({ 
+        shop: json.shop, 
+        media: json.media || [], 
+        stats: json.stats, 
+        plan: json.plan,
+        referral_code: json.referral_code || 'DUKAN777',
+        referral_count: json.referral_count || 0 
+      });
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setUI(prev => ({ ...prev, loading: false, refreshing: false }));
+    }
+  }, []);
+
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  const setUIKey = (key, val) => setUI(prev => ({ ...prev, [key]: val }));
+  const openEmail = () => Linking.openURL('mailto:dukanpersonal316@gmail.com?subject=Merchant Support');
+
+  const shareReferral = async () => {
+    try {
+      await Share.share({
+        message: `Join Dukan as a merchant using my code: ${data.referral_code}\n\nBoost your sales today! 🚀`,
+      });
+    } catch (error) { console.log(error.message); }
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      setUIKey('upgrading', true);
+      const token = await AsyncStorage.getItem('access_token');
+      const res = await fetch(`${BASE_URL}/api/shop/upgrade/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { Alert.alert('Error', 'Could not process upgrade'); return; }
+      Alert.alert('Success', 'Upgraded to Pro 🚀');
+      setUIKey('showUpgrade', false);
+      fetchDashboard();
+    } catch { Alert.alert('Error', 'Network error'); } finally { setUIKey('upgrading', false); }
+  };
+
+  const handleDownloadQR = async () => {
+    try {
+      const uri = await viewRef.current.capture();
+      await Sharing.shareAsync(uri);
+    } catch (err) { Alert.alert('Error', 'Could not generate QR'); }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert('Logout', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: async () => {
+          await AsyncStorage.clear();
+          router.replace('/role');
+      }},
+    ]);
+  };
+
+  if (ui.loading || !data.plan) {
+    return (
+      <View style={styles.center}>
+        <StatusBar style="dark" />
+        <ActivityIndicator size="large" color="#2F5D50" />
+      </View>
+    );
+  }
+
+  const { shop, media, stats, plan, referral_count } = data;
+  const progress = (referral_count / 3) * 100;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Fixed: StatusBar is a self-closing component */}
+      <StatusBar style="dark" />
+      
+      <QRModal visible={ui.showQR} onClose={() => setUIKey('showQR', false)} shop={shop} onDownload={handleDownloadQR} viewRef={viewRef} />
+
+      {/* UPGRADE MODAL */}
+      <Modal visible={ui.showUpgrade} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+            <View style={styles.modal}>
+                <Text style={styles.modalTitle}>Upgrade to PRO</Text>
+                <Text style={styles.modalSub}>Unlock unlimited potential for your shop</Text>
+                <View style={styles.modalFeature}>
+                    <Ionicons name="checkmark-circle" size={20} color="#2F5D50" />
+                    <Text style={styles.modalItem}>Unlimited Product Items</Text>
+                </View>
+                <View style={styles.modalFeature}>
+                    <Ionicons name="checkmark-circle" size={20} color="#2F5D50" />
+                    <Text style={styles.modalItem}>Advanced Shop Analytics</Text>
+                </View>
+                <TouchableOpacity style={styles.modalBtn} onPress={handleUpgrade} disabled={ui.upgrading}>
+                    {ui.upgrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Confirm Upgrade</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setUIKey('showUpgrade', false)} style={{marginTop: 15}}>
+                    <Text style={styles.cancelText}>Maybe Later</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+      </Modal>
+
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: 110 }}
+        refreshControl={<RefreshControl refreshing={ui.refreshing} onRefresh={() => { setUIKey('refreshing', true); fetchDashboard(); }} />}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Merchant Panel</Text>
+          <TouchableOpacity style={styles.headerEdit} onPress={() => router.push('/merchant/edit-shop')}>
+            <Ionicons name="settings-outline" size={20} color="#2F5D50" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <View style={styles.shopInitialBox}><Text style={styles.shopInitial}>{shop?.name?.[0]}</Text></View>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={styles.shopName}>{shop?.name}</Text>
+              <View style={styles.categoryPill}><Text style={styles.categoryText}>{shop?.category || 'General'}</Text></View>
+            </View>
+          </View>
+          <View style={styles.statsRow}>
+            <Stat label="Followers" value={stats?.followers ?? 0} icon="people-outline" />
+            <Stat label="Images" value={`${media.length}/${plan.cover_limit}`} icon="images-outline" />
+            <Stat label="Items" value={`${stats?.items ?? 0}`} icon="pricetags-outline" />
+          </View>
+        </View>
+
+        <View style={[styles.planCard, plan.type === 'pro' && styles.planCardPro]}>
+          <View style={styles.planHeader}>
+            <View style={styles.planBadge}><Text style={styles.planBadgeText}>{plan.type?.toUpperCase()} PLAN</Text></View>
+            {plan.type === 'free' && (
+              <TouchableOpacity style={styles.upgradeBtn} onPress={() => setUIKey('showUpgrade', true)}>
+                <Text style={styles.upgradeText}>Upgrade 🚀</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.referralCard}>
+          <Text style={styles.referralTitle}>Refer & Earn Pro</Text>
+          <View style={styles.calcWrapper}>
+            <View style={styles.progressContainer}>
+              <View style={[styles.progressBar, { width: `${Math.min(progress, 100)}%` }]} />
+            </View>
+            <Text style={styles.calcStatus}>{referral_count}/3 Friends Invited</Text>
+          </View>
+          <TouchableOpacity style={styles.shareFullBtn} onPress={shareReferral}>
+            <Ionicons name="share-social" size={18} color="#fff" />
+            <Text style={styles.shareFullText}>Invite Merchants</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.qrTriggerBtn} onPress={() => setUIKey('showQR', true)}>
+          <Ionicons name="qr-code-outline" size={20} color="#fff" />
+          <Text style={styles.qrTriggerText}>Show My Shop QR</Text>
+        </TouchableOpacity>
+
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Business Settings</Text></View>
+        <View style={styles.settingsCard}>
+          <Setting icon="create-outline" text="Edit Shop Profile" onPress={() => router.push('/merchant/edit-shop')} />
+          <Setting icon="images-outline" text="Add Shop Photos" onPress={() => router.push('/merchant/create-post')} />
+          <Setting icon="log-out-outline" text="Logout" color="#FF4B4B" onPress={handleLogout} border={false} />
+        </View>
+
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Support</Text></View>
+        <View style={styles.settingsCard}>
+          <SupportRow icon="mail-outline" title="Help Desk" subtitle="Get assistance via email" onPress={openEmail} />
+        </View>
+      </ScrollView>
+
+      {/* ── FOOTER NAV ── */}
+      <View style={styles.footer}>
+        <NavBtn icon="home-outline" label="Home" onPress={() => router.push('/merchant/home')} />
+        <NavBtn icon="grid-outline" label="Items" onPress={() => router.push('/merchant/items')} />
+        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/merchant/create-post')} activeOpacity={0.85}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
+        <NavBtn icon="person" label="Profile" onPress={() => router.push('/merchant/profile')} active />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F2F5F4' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 10 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
+  headerEdit: { backgroundColor: '#E8EFEA', padding: 8, borderRadius: 12 },
+  heroCard: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 15, borderRadius: 20, padding: 18, elevation: 3 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  shopInitialBox: { width: 50, height: 50, borderRadius: 12, backgroundColor: '#2F5D50', justifyContent: 'center', alignItems: 'center' },
+  shopInitial: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  shopName: { fontSize: 18, fontWeight: '700', color: '#1a1a1a' },
+  categoryPill: { marginTop: 4, backgroundColor: '#E8EFEA', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 2, alignSelf: 'flex-start' },
+  categoryText: { fontSize: 11, color: '#2F5D50', fontWeight: '600' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  statBox: { flex: 1, backgroundColor: '#F8FAF9', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
+  statValue: { fontWeight: '800', fontSize: 15, color: '#1a1a1a' },
+  statLabel: { fontSize: 10, color: '#888' },
+  planCard: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12, borderRadius: 16, padding: 16 },
+  planCardPro: { backgroundColor: '#2F5D5010', borderWidth: 1, borderColor: '#2F5D50' },
+  planHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  planBadge: { backgroundColor: '#2F5D5020', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  planBadgeText: { fontWeight: '700', color: '#2F5D50', fontSize: 12 },
+  upgradeBtn: { backgroundColor: '#2F5D50', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  upgradeText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  referralCard: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12, borderRadius: 20, padding: 18 },
+  referralTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  calcWrapper: { marginBottom: 15 },
+  progressContainer: { height: 8, backgroundColor: '#E8EFEA', borderRadius: 4, overflow: 'hidden', marginBottom: 8 },
+  progressBar: { height: '100%', backgroundColor: '#2F5D50' },
+  calcStatus: { fontSize: 12, fontWeight: '600', color: '#666' },
+  shareFullBtn: { backgroundColor: '#2F5D50', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, gap: 8 },
+  shareFullText: { color: '#fff', fontWeight: '700' },
+  qrTriggerBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1a1a1a', marginHorizontal: 16, marginTop: 12, paddingVertical: 14, borderRadius: 12 },
+  qrTriggerText: { color: '#fff', fontWeight: '700' },
+  qrOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  qrModalCard: { backgroundColor: '#fff', borderRadius: 20, width: '100%' },
+  qrPrintable: { alignItems: 'center', padding: 30, backgroundColor: '#fff' },
+  qrTitle: { fontSize: 18, fontWeight: '700', marginTop: 10 },
+  qrShopName: { fontSize: 14, color: '#666', marginBottom: 20 },
+  qrBox: { padding: 10 },
+  qrFooter: { marginTop: 15, fontSize: 12, color: '#aaa' },
+  qrActions: { padding: 20, gap: 10 },
+  qrDownloadBtn: { backgroundColor: '#2F5D50', padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
+  qrDownloadText: { color: '#fff', fontWeight: '700' },
+  qrCloseBtn: { alignItems: 'center', padding: 10 },
+  qrCloseText: { color: '#999' },
+  sectionHeader: { paddingHorizontal: 18, marginTop: 20, marginBottom: 8 },
+  sectionTitle: { fontWeight: '700', fontSize: 16 },
+  settingsCard: { backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 16, overflow: 'hidden' },
+  settingRow: { flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  settingIconBox: { width: 34, height: 34, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  settingText: { fontSize: 14, fontWeight: '600' },
+  supportRow: { flexDirection: 'row', alignItems: 'center', padding: 15 },
+  supportIconBox: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#E8EFEA', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  supportTitle: { fontSize: 14, fontWeight: '600' },
+  supportSub: { fontSize: 12, color: '#888' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modal: { backgroundColor: '#fff', borderRadius: 20, padding: 25 },
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 5 },
+  modalSub: { color: '#666', marginBottom: 20 },
+  modalFeature: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  modalItem: { fontSize: 14 },
+  modalBtn: { backgroundColor: '#2F5D50', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  modalBtnText: { color: '#fff', fontWeight: '700' },
+  cancelText: { textAlign: 'center', color: '#999' },
+
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingBottom: 16,
+    borderTopWidth: 0.5,
+    borderColor: '#eee',
+    elevation: 12,
+  },
+  navTab: { alignItems: 'center', gap: 2 },
+  navLabel: { fontSize: 10, color: '#bbb', fontWeight: '500' },
+  addBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#2F5D50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#2F5D50',
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    marginBottom: 8,
+  },
+});

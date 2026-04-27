@@ -1,15 +1,17 @@
 {
   "expo": {
-    "name": "dukan_app",
+    "name": "DUKAN APP",
     "slug": "dukan_app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo_green.png",
     "scheme": "dukanapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true
+    "splash": {
+      "image": "./assets/images/logo_green.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2F5D50"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +21,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.dukan_app"
     },
     "web": {
       "output": "static",
@@ -38,11 +41,22 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "./plugins/react-native-google-mobile-ads.plugin.js",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~3347511713",
+          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "ios": {
+      "bundleIdentifier": "com.anonymous.dukan-app"
     }
   }
 }
