@@ -37,7 +37,7 @@ import { loadRewardedAd, showRewardedAd } from '../../utils/rewardedAd';
 /* ─────────────────────────────────────────────
    2. CONSTANTS
 ───────────────────────────────────────────── */
-const BASE_URL = 'http://10.194.216.149:8000';
+const BASE_URL = 'https://api.mydukan.online';
 
 const C = Object.freeze({
   bg:            '#FFFFFF',
@@ -60,31 +60,30 @@ const C = Object.freeze({
 
 const MODES = Object.freeze([
   {
-    key: 'cover',
-    label: 'Shop Banner',
-    icon: 'image-outline',
-    desc: 'Main banner image shown at top of your shop page',
-    tip: 'Use a clear, high-quality photo. Horizontal (4:3) works best.',
+    key:           'cover',
+    label:         'Shop cover photo',
+    icon:          'image-outline',
+    desc:          'Main banner image shown at top of your shop page',
+    tip:           'Use a clear, high-quality photo. Horizontal (4:3) works best.',
     requiresImage: true,
-    requiresFields: false,
   },
   {
-    key: 'item',
-    label: 'New Item',
-    icon: 'cube-outline',
-    desc: 'Add a product to your shop listing',
-    tip: 'Add a good photo + price. Items with photos sell 3× more.',
+    key:           'item',
+    label:         'Add Items',
+    icon:          'cube-outline',
+    desc:          'Add a product to your shop listing',
+    tip:           'Add a good photo + price. Items with photos sell 3× more.',
     requiresImage: false,
-    requiresFields: true,
   },
   {
-    key: 'offer',
-    label: 'Special Offer',
-    icon: 'pricetag-outline',
-    desc: 'Promote a discount or sale to your customers',
-    tip: 'Short, clear offer titles grab attention fast.',
+    key:           'offer',
+    label:         'Add Offer',
+    icon:          'pricetag-outline',
+    desc:          'Promote a discount or sale to your customers',
+    tip:           'Short, clear offer titles grab attention fast.',
     requiresImage: false,
-    requiresFields: true,
+    // No photo step for offers
+    hidePhoto:     true,
   },
 ]);
 
@@ -115,8 +114,8 @@ const NavBtn = memo(({ icon, label, onPress, active }) => (
     <Text style={active ? styles.navLabelActive : styles.navLabel}>{label}</Text>
   </TouchableOpacity>
 ));
+NavBtn.displayName = 'NavBtn';
 
-/** Mode card — larger, more descriptive */
 const ModeCard = memo(({ mode, isActive, onPress }) => {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -136,11 +135,7 @@ const ModeCard = memo(({ mode, isActive, onPress }) => {
         style={[styles.modeCard, isActive && styles.modeCardActive]}
       >
         <View style={[styles.modeCardIconBox, isActive && styles.modeCardIconBoxActive]}>
-          <Ionicons
-            name={mode.icon}
-            size={22}
-            color={isActive ? C.white : C.textMuted}
-          />
+          <Ionicons name={mode.icon} size={22} color={isActive ? C.white : C.textMuted} />
         </View>
         <Text style={isActive ? styles.modeCardLabelActive : styles.modeCardLabel}>
           {mode.label}
@@ -154,8 +149,8 @@ const ModeCard = memo(({ mode, isActive, onPress }) => {
     </Animated.View>
   );
 });
+ModeCard.displayName = 'ModeCard';
 
-/** Field label */
 const FieldLabel = memo(({ children, required, hint }) => (
   <View style={styles.fieldLabelRow}>
     <Text style={styles.fieldLabel}>{children}</Text>
@@ -163,8 +158,8 @@ const FieldLabel = memo(({ children, required, hint }) => (
     {hint && <Text style={styles.fieldHint}>{hint}</Text>}
   </View>
 ));
+FieldLabel.displayName = 'FieldLabel';
 
-/** Styled input with optional prefix (for ₹) */
 const StyledInput = memo(({ label, required, iconName, prefix, hint, ...props }) => {
   const [focused, setFocused] = useState(false);
   const onFocus = useCallback(() => setFocused(true),  []);
@@ -198,8 +193,8 @@ const StyledInput = memo(({ label, required, iconName, prefix, hint, ...props })
     </View>
   );
 });
+StyledInput.displayName = 'StyledInput';
 
-/** Credits chip */
 const CreditsChip = memo(({ credits, limitReached }) => (
   <View style={limitReached ? styles.creditsChipWarning : styles.creditsChip}>
     <Ionicons
@@ -214,8 +209,8 @@ const CreditsChip = memo(({ credits, limitReached }) => (
     </Text>
   </View>
 ));
+CreditsChip.displayName = 'CreditsChip';
 
-/** Image placeholder */
 const ImagePlaceholder = memo(({ optional }) => (
   <View style={styles.imagePlaceholder}>
     <View style={styles.imagePlaceholderIconBox}>
@@ -227,16 +222,16 @@ const ImagePlaceholder = memo(({ optional }) => (
     </Text>
   </View>
 ));
+ImagePlaceholder.displayName = 'ImagePlaceholder';
 
-/** Tip card shown contextually */
 const TipCard = memo(({ text }) => (
   <View style={styles.tipCard}>
     <Ionicons name="bulb-outline" size={16} color={C.warning} style={{ marginTop: 1 }} />
     <Text style={styles.tipText}>{text}</Text>
   </View>
 ));
+TipCard.displayName = 'TipCard';
 
-/** Checklist row — shows what's done */
 const ReadyItem = memo(({ done, label }) => (
   <View style={styles.readyItem}>
     <Ionicons
@@ -247,6 +242,7 @@ const ReadyItem = memo(({ done, label }) => (
     <Text style={[styles.readyLabel, done && styles.readyLabelDone]}>{label}</Text>
   </View>
 ));
+ReadyItem.displayName = 'ReadyItem';
 
 /* ─────────────────────────────────────────────
    5. MAIN SCREEN
@@ -256,17 +252,12 @@ export default function CreatePost() {
 
   const [mode,    setModeState] = useState('cover');
   const [image,   setImage]     = useState(null);
-  const [loading, setLoading] = useState(false);
-  // ↓ single atom → fetchPlan causes ONE re-render instead of two
+  const [loading, setLoading]   = useState(false);
   const [planData, setPlanData] = useState({ plan: null, stats: null });
 
   const [form, dispatch] = useReducer(formReducer, initialForm);
 
-  // Stable field setters — created once, never re-created
-  const setField = useCallback(
-    (field) => (value) => dispatch({ type: 'SET', field, value }),
-    []
-  );
+  const setField    = useCallback((field) => (value) => dispatch({ type: 'SET', field, value }), []);
   const setName     = useMemo(() => setField('name'),     [setField]);
   const setPrice    = useMemo(() => setField('price'),    [setField]);
   const setDiscount = useMemo(() => setField('discount'), [setField]);
@@ -277,7 +268,6 @@ export default function CreatePost() {
   const slideAnim = useRef(new Animated.Value(20)).current;
   const isMounted = useRef(true);
 
-  // ↓ Store animateIn in a ref so setMode's useCallback has zero deps
   const animateInRef = useRef(null);
   animateInRef.current = () => {
     fadeAnim.setValue(0.3);
@@ -288,9 +278,7 @@ export default function CreatePost() {
     ]).start();
   };
 
-  useEffect(() => {
-    return () => { isMounted.current = false; };
-  }, []);
+  useEffect(() => () => { isMounted.current = false; }, []);
 
   useEffect(() => {
     InteractionManager.runAfterInteractions(() => { loadRewardedAd(); });
@@ -298,11 +286,9 @@ export default function CreatePost() {
       Animated.timing(fadeAnim,  { toValue: 1, duration: 360, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 360, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
-  // ↓ Zero deps — uses ref so it never forces child re-renders via prop change
   const setMode = useCallback((key) => {
-    // Batch all three state mutations into one React render cycle
     setModeState(key);
     setImage(null);
     dispatch({ type: 'RESET' });
@@ -315,46 +301,44 @@ export default function CreatePost() {
       if (!user_id) return;
       const res  = await fetch(`${BASE_URL}/api/merchant/dashboard/${user_id}/`);
       const data = await res.json();
-      if (!isMounted.current) return;
-      // ↓ single setState → single re-render (was two: setPlan + setStats)
-      setPlanData({ plan: data.plan, stats: data.stats });
+      if (isMounted.current) setPlanData({ plan: data.plan, stats: data.stats });
     } catch {}
   }, []);
 
   useEffect(() => { fetchPlan(); }, [fetchPlan]);
 
-  // ── Derived — destructured once at top of render ──
   const { plan, stats } = planData;
   const activeMode         = useMemo(() => MODES.find(m => m.key === mode), [mode]);
+  const showPhotoStep      = !activeMode.hidePhoto;
   const isItemLimitReached = useMemo(() => plan?.type === 'free' && (stats?.items ?? 0) >= 15, [plan, stats]);
   const credits            = useMemo(() => plan?.credits ?? 0, [plan]);
 
-  // ↓ Separate cover/item/offer into independent memos so only the
-  //   relevant one recomputes when form fields change.
-  const coverChecks = useMemo(() => [
-    { done: !!image, label: 'Banner photo added' },
-  ], [image]);
+  // Checklist per mode — offer has no photo check
+  const checks = useMemo(() => {
+    if (mode === 'cover') return [
+      { done: !!image, label: 'Banner photo added' },
+    ];
+    if (mode === 'item') return [
+      { done: !!form.name.trim(),  label: 'Item name entered' },
+      { done: !!form.price.trim(), label: 'Price entered (₹)' },
+      { done: !!image,             label: 'Photo added (optional)' },
+    ];
+    // offer
+    return [
+      { done: !!form.title.trim(),    label: 'Offer title entered' },
+      { done: !!form.discount.trim(), label: 'Discount % or amount set' },
+    ];
+  }, [mode, form.name, form.price, form.title, form.discount, image]);
 
-  const itemChecks = useMemo(() => [
-    { done: !!form.name.trim(),  label: 'Item name entered' },
-    { done: !!form.price.trim(), label: 'Price entered (₹)' },
-    { done: !!image,             label: 'Photo added (optional)' },
-  ], [form.name, form.price, image]);
-
-  const offerChecks = useMemo(() => [
-    { done: !!form.title.trim(),    label: 'Offer title entered' },
-    { done: !!form.discount.trim(), label: 'Discount % or amount set' },
-    { done: !!image,                label: 'Offer image added (optional)' },
-  ], [form.title, form.discount, image]);
-
-  // ↓ Picks the right pre-computed array — zero extra work
-  const checks = mode === 'cover' ? coverChecks : mode === 'item' ? itemChecks : offerChecks;
-
-  // ↓ canPublish depends only on checks — still O(n) but n ≤ 3
   const canPublish = useMemo(
     () => checks.filter(c => !c.label.includes('optional')).every(c => c.done),
     [checks]
   );
+
+  const { doneCount, totalChecks } = useMemo(() => ({
+    doneCount:   checks.reduce((n, c) => n + (c.done ? 1 : 0), 0),
+    totalChecks: checks.length,
+  }), [checks]);
 
   // ── Image picker ──
   const pickImage = useCallback(() => {
@@ -474,18 +458,12 @@ export default function CreatePost() {
     }
   }, [loading, mode, image, form, credits, resetForm, fetchPlan, router]);
 
-  // ── Nav — stable, router identity is stable in expo-router ──
+  // ── Nav ──
   const goHome    = useCallback(() => router.push('/merchant/home'),        [router]);
   const goItems   = useCallback(() => router.push('/merchant/items'),       [router]);
   const goCreate  = useCallback(() => router.push('/merchant/create-post'), [router]);
   const goProfile = useCallback(() => router.push('/merchant/profile'),     [router]);
   const goBack    = useCallback(() => router.back(),                        [router]);
-
-  // ↓ Single-pass reduce: count done AND total in one loop
-  const { doneCount, totalChecks } = useMemo(() => ({
-    doneCount:   checks.reduce((n, c) => n + (c.done ? 1 : 0), 0),
-    totalChecks: checks.length,
-  }), [checks]);
 
   /* ─────────────────────────────────────────────
      6. RENDER
@@ -522,12 +500,7 @@ export default function CreatePost() {
             </View>
             <View style={styles.modeCardRow}>
               {MODES.map(m => (
-                <ModeCard
-                  key={m.key}
-                  mode={m}
-                  isActive={m.key === mode}
-                  onPress={setMode}
-                />
+                <ModeCard key={m.key} mode={m} isActive={m.key === mode} onPress={setMode} />
               ))}
             </View>
             <Text style={styles.modeDesc}>{activeMode.desc}</Text>
@@ -535,56 +508,60 @@ export default function CreatePost() {
 
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
-            {/* Credits chip for items */}
+            {/* Credits chip — items only */}
             {mode === 'item' && (
               <CreditsChip credits={credits} limitReached={isItemLimitReached} />
             )}
 
-            {/* ── Step 2: Photo ── */}
-            <View style={styles.stepSection}>
-              <View style={styles.stepHeader}>
-                <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>2</Text></View>
-                <Text style={styles.stepTitle}>
-                  {activeMode.requiresImage ? 'Add Photo' : 'Add Photo'}
-                  {!activeMode.requiresImage && (
-                    <Text style={styles.optionalLabel}> (optional)</Text>
-                  )}
-                </Text>
-              </View>
+            {/* ── Step 2: Photo (hidden for offer) ── */}
+            {showPhotoStep && (
+              <View style={styles.stepSection}>
+                <View style={styles.stepHeader}>
+                  <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>2</Text></View>
+                  <Text style={styles.stepTitle}>
+                    Add Photo
+                    {!activeMode.requiresImage && (
+                      <Text style={styles.optionalLabel}> (optional)</Text>
+                    )}
+                  </Text>
+                </View>
 
-              <TouchableOpacity
-                style={styles.imagePicker}
-                onPress={pickImage}
-                activeOpacity={0.82}
-              >
-                {image ? (
-                  <View>
-                    <Image
-                      source={{ uri: image.uri }}
-                      style={styles.imagePreview}
-                      fadeDuration={0}
-                    />
-                    <View style={styles.imageOverlay}>
-                      <TouchableOpacity style={styles.imageChangeBtn} onPress={pickImage}>
-                        <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
-                        <Text style={styles.imageChangeBtnText}>Change</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
-                        <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                      </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.imagePicker}
+                  onPress={pickImage}
+                  activeOpacity={0.82}
+                >
+                  {image ? (
+                    <View>
+                      <Image
+                        source={{ uri: image.uri }}
+                        style={styles.imagePreview}
+                        fadeDuration={0}
+                      />
+                      <View style={styles.imageOverlay}>
+                        <TouchableOpacity style={styles.imageChangeBtn} onPress={pickImage}>
+                          <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
+                          <Text style={styles.imageChangeBtnText}>Change</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
+                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
-                ) : (
-                  <ImagePlaceholder optional={!activeMode.requiresImage} />
-                )}
-              </TouchableOpacity>
-            </View>
+                  ) : (
+                    <ImagePlaceholder optional={!activeMode.requiresImage} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
 
-            {/* ── Step 3: Details ── */}
+            {/* ── Step 3 (or 2 for offer): Details ── */}
             {(mode === 'item' || mode === 'offer') && (
               <View style={styles.stepSection}>
                 <View style={styles.stepHeader}>
-                  <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>3</Text></View>
+                  <View style={styles.stepBadge}>
+                    <Text style={styles.stepBadgeText}>{showPhotoStep ? '3' : '2'}</Text>
+                  </View>
                   <Text style={styles.stepTitle}>Enter Details</Text>
                 </View>
 
@@ -615,6 +592,7 @@ export default function CreatePost() {
 
                   {mode === 'offer' && (
                     <>
+                     
                       <StyledInput
                         label="Offer Title"
                         required
@@ -624,14 +602,15 @@ export default function CreatePost() {
                         onChangeText={setTitle}
                         autoCapitalize="words"
                       />
-                      <StyledInput
-                        label="Discount"
-                        iconName="pricetag-outline"
-                        placeholder="e.g. 20% OFF or ₹100 OFF"
-                        value={form.discount}
-                        onChangeText={setDiscount}
-                        hint="Type exactly what customers will see"
-                      />
+                       <StyledInput
+                          label="Discount"
+                          iconName="pricetag-outline"
+                          placeholder="e.g. 20% OFF or ₹100 OFF"
+                          value={form.discount}
+                          onChangeText={setDiscount}
+                          hint="Type exactly what customers will see"
+                          keyboardType="default"   // 🔥 ADD THIS
+                        />
                       <StyledInput
                         label="Short Description"
                         iconName="text-outline"
@@ -661,10 +640,7 @@ export default function CreatePost() {
 
             {/* ── Publish button ── */}
             <TouchableOpacity
-              style={[
-                styles.publishBtn,
-                (!canPublish || loading) && styles.publishBtnDisabled,
-              ]}
+              style={[styles.publishBtn, (!canPublish || loading) && styles.publishBtnDisabled]}
               onPress={upload}
               activeOpacity={0.85}
               disabled={loading}
@@ -713,7 +689,6 @@ const styles = StyleSheet.create({
   flex:      { flex: 1 },
   container: { flex: 1, backgroundColor: C.bg },
 
-  // Header
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 20, paddingVertical: 14,
@@ -733,7 +708,6 @@ const styles = StyleSheet.create({
   scroll:        { flex: 1, backgroundColor: C.bg },
   scrollContent: { padding: 20, paddingBottom: 120 },
 
-  // Step section
   stepSection: { marginBottom: 22 },
   stepHeader:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   stepBadge: {
@@ -745,29 +719,27 @@ const styles = StyleSheet.create({
   stepTitle:     { fontSize: 15, fontWeight: '700', color: C.textPrimary },
   optionalLabel: { fontSize: 13, fontWeight: '400', color: C.textMuted },
 
-  // Mode cards
-  modeCardRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  modeCardWrap: { flex: 1 },
+  modeCardRow:         { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  modeCardWrap:        { flex: 1 },
   modeCard: {
     alignItems: 'center', paddingVertical: 14, paddingHorizontal: 6,
     borderRadius: 14, backgroundColor: C.surface,
     borderWidth: 1.5, borderColor: C.border,
     position: 'relative',
   },
-  modeCardActive: { borderColor: C.accent, backgroundColor: C.accentSoft },
+  modeCardActive:          { borderColor: C.accent, backgroundColor: C.accentSoft },
   modeCardIconBox: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: C.border,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 6,
   },
-  modeCardIconBoxActive: { backgroundColor: C.accent },
-  modeCardLabel:       { fontSize: 12, fontWeight: '600', color: C.textMuted,    textAlign: 'center' },
-  modeCardLabelActive: { fontSize: 12, fontWeight: '700', color: C.accent,       textAlign: 'center' },
-  modeCardCheck: { position: 'absolute', top: 6, right: 6 },
-  modeDesc: { fontSize: 13, color: C.textSecondary, paddingLeft: 2, lineHeight: 18 },
+  modeCardIconBoxActive:   { backgroundColor: C.accent },
+  modeCardLabel:           { fontSize: 12, fontWeight: '600', color: C.textMuted,  textAlign: 'center' },
+  modeCardLabelActive:     { fontSize: 12, fontWeight: '700', color: C.accent,     textAlign: 'center' },
+  modeCardCheck:           { position: 'absolute', top: 6, right: 6 },
+  modeDesc:                { fontSize: 13, color: C.textSecondary, paddingLeft: 2, lineHeight: 18 },
 
-  // Credits
   creditsChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: C.accentSoft,
@@ -783,22 +755,24 @@ const styles = StyleSheet.create({
   creditsText:        { fontSize: 13, color: C.accent,  fontWeight: '600', flexShrink: 1 },
   creditsTextWarning: { fontSize: 13, color: C.warning, fontWeight: '600', flexShrink: 1 },
 
-  // Image picker
   imagePicker: {
     borderRadius: 16, overflow: 'hidden',
     borderWidth: 1.5, borderColor: C.border, borderStyle: 'dashed',
     backgroundColor: C.surface,
   },
-  imagePlaceholder: { height: 160, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  imagePlaceholder:        { height: 160, alignItems: 'center', justifyContent: 'center', gap: 6 },
   imagePlaceholderIconBox: {
     width: 60, height: 60, borderRadius: 16,
     backgroundColor: C.accentSoft,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 4, borderWidth: 1, borderColor: C.border,
   },
-  imagePlaceholderTitle: { fontSize: 15, fontWeight: '700', color: C.textPrimary },
-  imagePlaceholderSub:   { fontSize: 12, color: C.textSecondary, textAlign: 'center', paddingHorizontal: 24 },
-  imagePreview: { width: '100%', height: 200, resizeMode: 'cover' },
+  imagePlaceholderTitle:   { fontSize: 15, fontWeight: '700', color: C.textPrimary },
+  imagePlaceholderSub: {
+    fontSize: 12, color: C.textSecondary,
+    textAlign: 'center', paddingHorizontal: 24,
+  },
+  imagePreview:   { width: '100%', height: 200, resizeMode: 'cover' },
   imageOverlay: {
     position: 'absolute', bottom: 10, right: 10,
     flexDirection: 'row', gap: 8,
@@ -817,14 +791,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  // Fields card
   fieldsCard: {
     backgroundColor: C.surface, borderRadius: 16,
     padding: 16, gap: 16,
     borderWidth: 1, borderColor: C.border,
   },
 
-  // Input
   inputGroup:    { gap: 6 },
   fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   fieldLabel: {
@@ -836,7 +808,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.accent,
     paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
   },
-  fieldHint: { fontSize: 11, color: C.textMuted, fontStyle: 'italic' },
+  fieldHint:    { fontSize: 11, color: C.textMuted, fontStyle: 'italic' },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.bg, borderRadius: 12,
@@ -853,7 +825,6 @@ const styles = StyleSheet.create({
   inputPrefix: { fontSize: 16, fontWeight: '700', marginRight: 4 },
   input: { flex: 1, fontSize: 15, color: C.textPrimary, fontWeight: '500' },
 
-  // Tip card
   tipCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     backgroundColor: '#FFFBEB',
@@ -862,18 +833,16 @@ const styles = StyleSheet.create({
   },
   tipText: { flex: 1, fontSize: 13, color: '#92400E', lineHeight: 19 },
 
-  // Readiness card
   readyCard: {
     backgroundColor: C.surface,
     borderRadius: 14, padding: 16, marginBottom: 20,
     borderWidth: 1, borderColor: C.border, gap: 10,
   },
-  readyTitle: { fontSize: 13, fontWeight: '700', color: C.textPrimary, marginBottom: 2 },
-  readyItem:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  readyLabel: { fontSize: 13, color: C.textMuted, fontWeight: '500' },
+  readyTitle:     { fontSize: 13, fontWeight: '700', color: C.textPrimary, marginBottom: 2 },
+  readyItem:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  readyLabel:     { fontSize: 13, color: C.textMuted, fontWeight: '500' },
   readyLabelDone: { color: C.textPrimary },
 
-  // Publish
   publishBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: C.accent, borderRadius: 16, height: 56, gap: 10,
@@ -882,20 +851,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   publishBtnDisabled: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: C.textMuted, borderRadius: 16, height: 56, gap: 10,
-    elevation: 0, marginBottom: 12, opacity: 0.6,
+    backgroundColor: C.textMuted,
+    shadowOpacity: 0, elevation: 0, opacity: 0.6,
   },
   publishBtnText: { fontSize: 16, fontWeight: '700', color: C.white, letterSpacing: 0.3 },
 
-  // Reset
   resetBtn: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 5, paddingVertical: 10,
   },
   resetBtnText: { fontSize: 13, color: C.textMuted, fontWeight: '500' },
 
-  // Footer
   footer: {
     position: 'absolute', bottom: 0, width: '100%',
     backgroundColor: C.white,
@@ -915,5 +881,4 @@ const styles = StyleSheet.create({
     shadowColor: C.accent, shadowOpacity: 0.4, shadowRadius: 8,
     marginBottom: 8,
   },
-
 });

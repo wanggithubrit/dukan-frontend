@@ -1,13 +1,14 @@
 import { StyleSheet, View } from 'react-native';
 import {
-    BannerAd,
-    BannerAdSize,
-    TestIds,
+  BannerAd,
+  BannerAdSize,
+  TestIds,
 } from 'react-native-google-mobile-ads';
+
 
 const adUnitId = __DEV__
   ? TestIds.BANNER
-  : 'ca-app-pub-3940256099942544/6300978111'; // ✅ TEST BANNER ID
+  : 'ca-app-pub-9676497994699972/8099830953'; 
 
 export default function AdBanner() {
   return (

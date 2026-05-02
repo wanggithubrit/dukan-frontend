@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
 import {
   ActivityIndicator,
   Alert,
@@ -18,10 +19,13 @@ import {
   View
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 
-const BASE_URL = 'http://10.194.216.149:8000';
+
+
+const BASE_URL = "https://api.mydukan.online";
 
 /* ─────────────────────────────────────────────
    SUB-COMPONENTS
@@ -98,6 +102,121 @@ const QRModal = ({ visible, onClose, shop, onDownload, viewRef }) => (
   </Modal>
 );
 
+
+
+//payment gateway
+
+
+export const startPayment = async () => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+
+    // ─── STEP 1: CREATE ORDER ───
+    const res = await fetch(`${BASE_URL}/api/create-order/`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error('Failed to create order');
+    }
+
+    // ─── STEP 2: RAZORPAY OPTIONS ───
+    const options = {
+      description: 'Pro Plan - 30 Days',
+      image: 'https://yourlogo.com/logo.png',
+      currency: 'INR',
+      key: data.key,
+      amount: data.amount,
+      order_id: data.order_id,
+
+      name: 'Dukan App',
+
+      prefill: {
+        contact: '9999999999',
+      },
+
+      theme: { color: '#2F5D50' },
+
+      // 🔥 ONLY UPI
+      method: {
+        upi: true,
+        card: false,
+        netbanking: false,
+        wallet: false,
+        emi: false,
+        paylater: false
+      },
+
+      // 🔥 DIRECT UPI APPS (BEST UX)
+      upi: {
+        flow: 'intent'
+      }
+    };
+
+    // ─── STEP 3: OPEN PAYMENT ───
+    RazorpayCheckout.open(options)
+      .then(async (payment) => {
+        console.log("PAYMENT SUCCESS:", payment);
+
+        await verifyPayment(payment);
+
+        Alert.alert("Success 🎉", "Pro Plan Activated!");
+      })
+      .catch((err) => {
+        console.log("PAYMENT FAILED:", err);
+
+        if (err.code !== 0) {
+          Alert.alert("Payment Failed", "Try again.");
+        }
+      });
+
+  } catch (err) {
+    console.log("ERROR:", err);
+    Alert.alert("Error", err.message);
+  }
+};
+
+
+
+// ─────────────────────────────
+// 🔐 VERIFY PAYMENT (IMPORTANT)
+// ─────────────────────────────
+const verifyPayment = async (payment) => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+
+    const res = await fetch(`${BASE_URL}/api/verify-payment/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        order_id: payment.razorpay_order_id,
+        payment_id: payment.razorpay_payment_id,
+        signature: payment.razorpay_signature
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.status !== 'success') {
+      throw new Error("Verification failed");
+    }
+
+  } catch (err) {
+    console.log("VERIFY ERROR:", err);
+    Alert.alert("Error", "Payment verification failed");
+  }
+};
+//verify payment 
+
+
 /* ─────────────────────────────────────────────
    MAIN SCREEN
 ───────────────────────────────────────────── */
@@ -136,8 +255,8 @@ export default function MerchantProfile() {
         referral_code: json.referral_code || 'DUKAN777',
         referral_count: json.referral_count || 0 
       });
-    } catch (err) {
-      console.log(err);
+    } catch (_err) {
+      console.log(_err);
     } finally {
       setUI(prev => ({ ...prev, loading: false, refreshing: false }));
     }
@@ -156,26 +275,60 @@ export default function MerchantProfile() {
     } catch (error) { console.log(error.message); }
   };
 
-  const handleUpgrade = async () => {
-    try {
-      setUIKey('upgrading', true);
-      const token = await AsyncStorage.getItem('access_token');
-      const res = await fetch(`${BASE_URL}/api/shop/upgrade/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) { Alert.alert('Error', 'Could not process upgrade'); return; }
-      Alert.alert('Success', 'Upgraded to Pro 🚀');
-      setUIKey('showUpgrade', false);
-      fetchDashboard();
-    } catch { Alert.alert('Error', 'Network error'); } finally { setUIKey('upgrading', false); }
+
+
+const handlePayment = async () => {
+  const token = await AsyncStorage.getItem('access_token');
+
+  // 🔥 get order from backend
+  const res = await fetch(`${BASE_URL}/api/payment/create-order/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+
+  const options = {
+    description: 'Dukan Pro Plan',
+    currency: 'INR',
+    key: data.key,
+    amount: data.amount,
+    order_id: data.order_id,
+
+    name: 'Dukan',
+    prefill: {
+      email: 'test@dukan.com',
+      contact: '9999999999',
+    },
+
+    theme: { color: '#2F5D50' },
   };
+
+  RazorpayCheckout.open(options)
+    .then(async (payment) => {
+      Alert.alert('Success', 'Payment successful');
+
+      // 🔥 CALL BACKEND TO UPGRADE PLAN
+      await fetch(`${BASE_URL}/api/shop/upgrade/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+    })
+    .catch((error) => {
+      Alert.alert('Error', 'Payment failed');
+    });
+};
 
   const handleDownloadQR = async () => {
     try {
       const uri = await viewRef.current.capture();
       await Sharing.shareAsync(uri);
-    } catch (err) { Alert.alert('Error', 'Could not generate QR'); }
+    } catch (_err) { Alert.alert('Error', 'Could not generate QR'); }
   };
 
   const handleLogout = async () => {
@@ -219,10 +372,18 @@ export default function MerchantProfile() {
                 </View>
                 <View style={styles.modalFeature}>
                     <Ionicons name="checkmark-circle" size={20} color="#2F5D50" />
-                    <Text style={styles.modalItem}>Advanced Shop Analytics</Text>
+                    <Text style={styles.modalItem}>Advertisement Banner</Text>
                 </View>
-                <TouchableOpacity style={styles.modalBtn} onPress={handleUpgrade} disabled={ui.upgrading}>
-                    {ui.upgrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Confirm Upgrade</Text>}
+                <View style={styles.modalFeature}>
+                    <Ionicons name="checkmark-circle" size={20} color="#2F5D50" />
+                    <Text style={styles.modalItem}>Add upto 5 shop cover photo</Text>
+                </View>
+                <View style={styles.modalFeature}>
+                    <Ionicons name="checkmark-circle" size={20} color="#2F5D50" />
+                    <Text style={styles.modalItem}>Notifications to you customers</Text>
+                </View>
+                <TouchableOpacity style={styles.modalBtn} onPress={handlePayment} disabled={ui.upgrading}>
+                    {ui.upgrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Pay ₹40 / month</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setUIKey('showUpgrade', false)} style={{marginTop: 15}}>
                     <Text style={styles.cancelText}>Maybe Later</Text>
@@ -238,9 +399,7 @@ export default function MerchantProfile() {
       >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Merchant Panel</Text>
-          <TouchableOpacity style={styles.headerEdit} onPress={() => router.push('/merchant/edit-shop')}>
-            <Ionicons name="settings-outline" size={20} color="#2F5D50" />
-          </TouchableOpacity>
+          
         </View>
 
         <View style={styles.heroCard}>
@@ -409,4 +568,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     marginBottom: 8,
   },
+
+  method: {
+  upi: true,
+  card: false,
+  netbanking: false,
+  wallet: false
+}
 });

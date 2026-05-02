@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = 'http://10.14.104.138:8000';
+const BASE_URL = 'https://api.mydukan.online'
 
 export default function VerifyOtp() {
   const router = useRouter();
@@ -54,7 +54,7 @@ export default function VerifyOtp() {
       } else {
         Alert.alert('Verification Failed', data.error || 'The code you entered is incorrect or expired.');
       }
-    } catch (err) {
+    } catch (_err) {
       Alert.alert('Network Error', 'Check your connection and try again.');
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ export default function VerifyOtp() {
           <View style={styles.textGroup}>
             <Text style={styles.title}>Verify Email</Text>
             <Text style={styles.subtitle}>
-              We've sent a 6-digit code to{"\n"}
+              {'We\'ve sent a 6-digit code to'}{"\n"}
               <Text style={styles.emailHighlight}>{email || 'your email'}</Text>
             </Text>
           </View>
@@ -123,7 +123,7 @@ export default function VerifyOtp() {
 
             {/* RESEND OPTION */}
             <View style={styles.resendContainer}>
-              <Text style={styles.resendText}>Didn't receive code? </Text>
+              <Text style={styles.resendText}>{'Didn\'t receive code? '}</Text>
               <TouchableOpacity onPress={() => {/* Logic to resend OTP */}}>
                 <Text style={styles.resendLink}>Resend OTP</Text>
               </TouchableOpacity>

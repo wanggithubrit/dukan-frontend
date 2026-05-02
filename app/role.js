@@ -31,7 +31,7 @@ const RoleCard = ({ icon, title, desc, onPress, bg }) => (
       <Text style={styles.cardDesc}>{desc}</Text>
     </View>
 
-    <AntDesign name="arrowright" size={18} color="#C1C7CD" />
+    <AntDesign name="arrow-right" size={18} color="#C1C7CD" />
   </TouchableOpacity>
 );
 
@@ -85,14 +85,6 @@ export default function RoleScreen() {
             onPress={() => router.push('/merchant-signup')}
           />
 
-          <TouchableOpacity
-            style={styles.merchantLogin}
-            onPress={() => router.push('/login')}
-          >
-            <Text style={styles.merchantLoginText}>
-              Already a Seller Account? <Text style={styles.boldGreen}>Sign In</Text>
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* FOOTER */}
@@ -224,7 +216,7 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    marginBottom: 30,
+    marginBottom: 250,
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',

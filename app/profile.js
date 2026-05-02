@@ -7,6 +7,7 @@ import {
   Animated,
   Image,
   Linking,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -14,9 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const BASE_URL = 'http://10.194.216.149:8000';
-
+const BASE_URL = "https://api.mydukan.online";
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
   primary:    '#2F5D50',
@@ -89,7 +88,7 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile();
     Animated.timing(fadeAnim, { toValue: 1, duration: 450, useNativeDriver: true }).start();
-  }, []);
+  }, [fadeAnim, fetchProfile]);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -149,6 +148,7 @@ export default function Profile() {
   if (loading) {
     return (
       <View style={s.loader}>
+        <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
         <ActivityIndicator size="large" color={C.accent} />
       </View>
     );
@@ -158,6 +158,8 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+
       <Animated.ScrollView
         style={{ opacity: fadeAnim }}
         contentContainerStyle={s.scroll}
@@ -301,14 +303,14 @@ export default function Profile() {
             <TouchableOpacity
               style={[s.socialCard, { marginRight: 12 }]}
               activeOpacity={0.85}
-              onPress={() => Linking.openURL('https://instagram.com/dukan.live')}
+              onPress={() => Linking.openURL('https://www.instagram.com/dukan.service/')}
             >
               <View style={[s.socialIcon, { backgroundColor: '#E1306C' }]}>
                 <Ionicons name="logo-instagram" size={19} color="#fff" />
               </View>
               <View>
                 <Text style={s.socialName}>Instagram</Text>
-                <Text style={s.socialHandle}>@dukan.live</Text>
+                <Text style={s.socialHandle}>@dukan.service</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity
@@ -330,7 +332,7 @@ export default function Profile() {
         <Text style={s.version}>Dukan · v1.0.0</Text>
       </Animated.ScrollView>
 
-      {/* BOTTOM NAV — same as Home */}
+      {/* BOTTOM NAV */}
       <View style={s.bottomNav}>
         <TouchableOpacity style={s.tab} onPress={() => router.push('/shop/home')}>
           <View style={[s.iconWrapper, pathname === '/shop/home' && s.activeTab]}>
@@ -432,10 +434,10 @@ const s = StyleSheet.create({
   },
 
   // Avatar picker
-  avatarRow:      { flexDirection: 'row', justifyContent: 'center', padding: 20 },
-  avatarBtn:      { borderRadius: 36, borderWidth: 2.5, borderColor: 'transparent', position: 'relative', padding: 3 },
+  avatarRow:       { flexDirection: 'row', justifyContent: 'center', padding: 20 },
+  avatarBtn:       { borderRadius: 36, borderWidth: 2.5, borderColor: 'transparent', position: 'relative', padding: 3 },
   avatarBtnActive: { borderColor: C.accent, backgroundColor: 'rgba(126,207,179,0.1)' },
-  avatarImg:      { width: 58, height: 58, borderRadius: 29 },
+  avatarImg:       { width: 58, height: 58, borderRadius: 29 },
   avatarTick: {
     position: 'absolute', bottom: 1, right: 1,
     width: 18, height: 18, borderRadius: 9,
@@ -480,7 +482,7 @@ const s = StyleSheet.create({
   sendBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   // Social
-  socialRow:    { flexDirection: 'row' },
+  socialRow: { flexDirection: 'row' },
   socialCard: {
     flex: 1, backgroundColor: C.card, borderRadius: 20,
     borderWidth: 1, borderColor: C.cardBorder,
@@ -500,7 +502,7 @@ const s = StyleSheet.create({
     marginTop: 30, letterSpacing: 0.5,
   },
 
-  // Bottom nav — identical to Home
+  // Bottom nav
   bottomNav: {
     position: 'absolute', bottom: 10, alignSelf: 'center',
     flexDirection: 'row', width: '90%', backgroundColor: '#fff',

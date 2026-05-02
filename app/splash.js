@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import {
-  Animated,
-  Image,
-  StyleSheet,
-  Text,
-  View,
+    Animated,
+    Image,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 
 export default function SplashScreen() {
@@ -36,7 +36,7 @@ export default function SplashScreen() {
     }, 2000);
 
     return () => clearTimeout(timer); // cleanup
-  }, []);
+  }, [fadeAnim, router, translateY]);
 
   return (
     <View style={styles.container}>

@@ -17,7 +17,8 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-const BASE_URL = 'http://10.194.216.149:8000';
+
+const BASE_URL = "https://api.mydukan.online";
 
 
 export default function ForgotPassword() {
@@ -53,7 +54,7 @@ export default function ForgotPassword() {
       } else {
         Alert.alert('Error', data.error || 'User not found or server error.');
       }
-    } catch (err) {
+    } catch (_err) {
       Alert.alert('Network Error', 'Check your internet connection and try again.');
     } finally {
       setLoading(false);
@@ -89,7 +90,7 @@ export default function ForgotPassword() {
           <View style={styles.textGroup}>
             <Text style={styles.title}>Reset Password</Text>
             <Text style={styles.subtitle}>
-              Enter the email associated with your account and we'll send an OTP to reset your password.
+              Enter the email associated with your account and {'we\'ll'} send an OTP to reset your password.
             </Text>
           </View>
 

@@ -8,6 +8,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -19,21 +20,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = 'http://10.194.216.149:8000';
-
+const BASE_URL = "https://api.mydukan.online";
 
 export default function Login() {
   const router = useRouter();
 
   /* ─────────────────────────────────────────────
-     2. LOGIC (State & Functions)
+     2. LOGIC (State & API)
   ───────────────────────────────────────────── */
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    // Basic Validation
     if (!username.trim() || !password.trim()) {
       Alert.alert('Incomplete Fields', 'Please enter both your username and password.');
       return;
@@ -44,7 +44,9 @@ export default function Login() {
 
       const res = await fetch(`${BASE_URL}/api/auth/login/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           username: username.trim(),
           password: password.trim(),
@@ -56,7 +58,6 @@ export default function Login() {
       if (res.ok && (data.access || data.token)) {
         const accessToken = data.access || data.token;
 
-        // Save session data
         await AsyncStorage.multiSet([
           ['access_token', accessToken],
           ['refresh_token', data.refresh || ''],
@@ -64,17 +65,22 @@ export default function Login() {
           ['role', data.role || 'customer'],
         ]);
 
-        // Role-based routing
         if (data.role === 'merchant') {
           router.replace('/merchant/home');
         } else {
           router.replace('/shop/home');
         }
       } else {
-        Alert.alert('Login Failed', data?.error || 'Invalid credentials. Please try again.');
+        Alert.alert(
+          'Login Failed',
+          data?.error || 'Invalid credentials. Please try again.'
+        );
       }
-    } catch (err) {
-      Alert.alert('Connection Error', 'Could not reach the server. Check your network.');
+    } catch (_err) {
+      Alert.alert(
+        'Connection Error',
+        'Could not reach the server. Check your network connection or server address.'
+      );
     } finally {
       setLoading(false);
     }
@@ -85,55 +91,78 @@ export default function Login() {
   ───────────────────────────────────────────── */
   return (
     <View style={styles.mainWrapper}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      
-      <SafeAreaView style={styles.container}>
-        {/* TOP NAVIGATION (Back Button) */}
-        <View style={styles.navHeader}>
-          <TouchableOpacity 
-            style={styles.backCircle} 
-            onPress={() => router.back()}
-          >
-            <Ionicons name="chevron-back" size={24} color="#1A1A1A" />
-          </TouchableOpacity>
-        </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        <KeyboardAvoidingView 
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.content}
         >
-          {/* WELCOME SECTION */}
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>Welcome Back</Text>
-            <Text style={styles.welcomeSub}>Please log in to continue</Text>
+
+          {/* ── Brand Section ── */}
+          <View style={styles.brandSection}>
+            <View style={styles.logoPlaceholder}>
+              <Image
+                source={require('../assets/images/logo_green.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.brandName}>dukan</Text>
+            <Text style={styles.brandTagline}>Making local shopping easy</Text>
           </View>
 
-          {/* INPUT FIELDS */}
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Username</Text>
-              <TextInput
-                placeholder="Enter your username"
-                placeholderTextColor="#9CA3AF"
-                value={username}
-                onChangeText={setUsername}
-                style={styles.input}
-                autoCapitalize="none"
-              />
+          {/* ── Form Section ── */}
+          <View style={styles.formSection}>
+
+            <Text style={styles.formTitle}>Welcome back</Text>
+            <Text style={styles.formSub}>Sign in</Text>
+
+            {/* Username Field */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>USERNAME</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={17} color="#064E3B" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Enter your username"
+                  placeholderTextColor="#A3A3A3"
+                  value={username}
+                  onChangeText={(text) => setUsername(text.trim())}
+                  style={styles.input}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <TextInput
-                placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-                style={styles.input}
-              />
+            {/* Password Field */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>PASSWORD</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={17} color="#064E3B" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Enter your password"
+                  placeholderTextColor="#A3A3A3"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={(text) => setPassword(text)}
+                  style={[styles.input, styles.inputWithToggle]}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  style={styles.eyeBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={showPassword ? '#064E3B' : '#A3A3A3'}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
+            {/* Forgot Password */}
             <TouchableOpacity
               onPress={() => router.push('/forgot-password')}
               style={styles.forgotBtn}
@@ -141,29 +170,39 @@ export default function Login() {
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            {/* LOGIN BUTTON */}
+            {/* Sign In Button */}
             <TouchableOpacity
               style={[styles.loginBtn, loading && styles.btnDisabled]}
               onPress={handleLogin}
               disabled={loading}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.loginBtnText}>Sign In</Text>
+                <View style={styles.btnInner}>
+                  <Text style={styles.loginBtnText}>Sign In</Text>
+                  <Ionicons name="arrow-forward-outline" size={18} color="#fff" />
+                </View>
               )}
             </TouchableOpacity>
-          </View>
 
-          {/* SIGN UP REDIRECT (Optional but professional) */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/role')}>
-              <Text style={styles.signUpText}>Join now</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/role')}>
+                <Text style={styles.signUpText}>Join Now</Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -171,109 +210,172 @@ export default function Login() {
 }
 
 /* ─────────────────────────────────────────────
-   4. STYLES
+   STYLES  —  palette: #FFFFFF · #064E3B · #0A0A0A
 ───────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  mainWrapper: { flex: 1, backgroundColor: '#000' }, // For black status bar area
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  
-  navHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  mainWrapper: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  backCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     justifyContent: 'center',
   },
 
-  welcomeSection: {
-    marginBottom: 35,
+  /* ── Brand ── */
+  brandSection: {
+    alignItems: 'center',
+    marginBottom: 40,
   },
-  welcomeTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#111827',
-    letterSpacing: -0.5,
+  logoPlaceholder: {
+    width: 84,
+    height: 84,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
   },
-  welcomeSub: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 4,
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  brandName: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#064E3B',
+    letterSpacing: -1.5,
+  },
+  brandTagline: {
+    fontSize: 13,
+    color: '#A3A3A3',
+    marginTop: 2,
+    letterSpacing: 0.3,
   },
 
-  form: {
+  /* ── Form ── */
+  formSection: {
     width: '100%',
   },
-  inputContainer: {
-    marginBottom: 20,
+  formTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0A0A0A',
+    letterSpacing: -0.4,
   },
-  inputLabel: {
+  formSub: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  input: {
-    backgroundColor: '#FFF',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    fontSize: 16,
-    color: '#111827',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    color: '#A3A3A3',
+    marginTop: 4,
+    marginBottom: 28,
   },
 
+  /* Fields */
+  fieldGroup: {
+    marginBottom: 18,
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0A0A0A',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 14,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#0A0A0A',
+  },
+  inputWithToggle: {
+    paddingRight: 4,
+  },
+  eyeBtn: {
+    paddingLeft: 8,
+    paddingVertical: 4,
+  },
+
+  /* Forgot */
   forgotBtn: {
     alignSelf: 'flex-end',
-    marginBottom: 30,
+    marginBottom: 26,
+    marginTop: -6,
   },
   forgotText: {
     color: '#064E3B',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 13,
   },
 
+  /* Button */
   loginBtn: {
     backgroundColor: '#064E3B',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
-    elevation: 4,
     shadowColor: '#064E3B',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  btnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   btnDisabled: {
-    backgroundColor: '#374151',
-    opacity: 0.8,
+    backgroundColor: '#6B7280',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   loginBtnText: {
-    color: '#FFF',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
 
+  /* Divider */
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    color: '#A3A3A3',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  /* Footer */
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 40,
+    alignItems: 'center',
   },
   footerText: {
     color: '#6B7280',
@@ -281,7 +383,7 @@ const styles = StyleSheet.create({
   },
   signUpText: {
     color: '#064E3B',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 14,
   },
 });

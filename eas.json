@@ -1,0 +1,30 @@
+{
+  "cli": {
+    "version": ">= 18.8.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_DEV_MENU_ENABLED": "true"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_DEV_MENU_ENABLED": "false"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_DEV_MENU_ENABLED": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

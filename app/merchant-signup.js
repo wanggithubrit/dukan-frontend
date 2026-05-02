@@ -8,6 +8,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,8 +21,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = 'http://10.194.216.149:8000';
-
+const BASE_URL = "https://api.mydukan.online";
 
 export default function MerchantSignup() {
   const router = useRouter();
@@ -37,9 +37,10 @@ export default function MerchantSignup() {
   const [loading, setLoading] = useState(false);
   const [locLoading, setLocLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const categories = [
-    'Grocery', 'Footwear', 'Fashion', 'Medicine', 'Electronics', 
+    'Grocery', 'Footwear', 'Fashion', 'Medicine', 'Electronics',
     'Bakeries', 'Rentals', 'Stationery', 'Books', 'Furniture', 'Others'
   ];
 
@@ -61,7 +62,7 @@ export default function MerchantSignup() {
         const p = geo[0];
         setForm({ ...form, address: `${p.name || ''}, ${p.city || ''}, ${p.region || ''}`.replace(/^, /, '') });
       }
-    } catch (err) {
+    } catch (_err) {
       Alert.alert('Error', 'Could not fetch location.');
     } finally {
       setLocLoading(false);
@@ -99,7 +100,7 @@ export default function MerchantSignup() {
       } else {
         Alert.alert('Signup Failed', data.error || 'Check your details.');
       }
-    } catch (err) {
+    } catch (_err) {
       Alert.alert('Network Error', 'Server is unreachable.');
     } finally {
       setLoading(false);
@@ -111,70 +112,206 @@ export default function MerchantSignup() {
   ───────────────────────────────────────────── */
   return (
     <View style={styles.screenWrapper}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <SafeAreaView style={styles.container}>
-        
-        {/* HEADER */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color="#111" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Seller Setup</Text>
-          <View style={{ width: 40 }} /> 
-        </View>
 
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Business Details</Text>
-              <Text style={styles.sectionSub}>Tell us about your shop</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+
+            {/* ── Brand Section ── */}
+            <View style={styles.brandSection}>
+              <View style={styles.logoPlaceholder}>
+                <Image
+                  source={require('../assets/images/logo_green.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.brandName}>dukan</Text>
+              <Text style={styles.brandTagline}>Your local marketplace</Text>
             </View>
 
-            {/* INPUT FIELDS */}
-            <TextInput placeholder="Username" style={styles.input} onChangeText={(v) => setForm({...form, username: v})} />
-            <TextInput placeholder="Email Address" keyboardType="email-address" style={styles.input} onChangeText={(v) => setForm({...form, email: v})} />
-            <TextInput placeholder="Password" secureTextEntry style={styles.input} onChangeText={(v) => setForm({...form, password: v})} />
-            <TextInput placeholder="Shop Name" style={styles.input} onChangeText={(v) => setForm({...form, shopName: v})} />
+            {/* ── Form Header ── */}
+            <Text style={styles.formTitle}>Seller Setup</Text>
+            <Text style={styles.formSub}>Tell us about your shop</Text>
 
-            {/* CATEGORY SELECTOR */}
-            <TouchableOpacity style={styles.selector} onPress={() => setShowDropdown(!showDropdown)}>
-              <Text style={[styles.selectorText, form.category && { color: '#111' }]}>
-                {form.category || 'Select Category'}
-              </Text>
-              <Ionicons name={showDropdown ? "chevron-up" : "chevron-down"} size={18} color="#666" />
-            </TouchableOpacity>
-
-            {showDropdown && (
-              <View style={styles.dropdownList}>
-                {categories.map((cat, i) => (
-                  <TouchableOpacity key={i} style={styles.dropdownItem} onPress={() => { setForm({...form, category: cat}); setShowDropdown(false); }}>
-                    <Text style={styles.dropdownText}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Username */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>USERNAME</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={17} color="#064E3B" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Enter your username"
+                  placeholderTextColor="#A3A3A3"
+                  style={styles.input}
+                  value={form.username}
+                  onChangeText={(v) => setForm({ ...form, username: v })}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
               </View>
-            )}
+            </View>
 
-            {/* LOCATION BOX */}
+            {/* Email */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>EMAIL</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="mail-outline" size={17} color="#064E3B" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Enter your email"
+                  placeholderTextColor="#A3A3A3"
+                  style={styles.input}
+                  value={form.email}
+                  onChangeText={(v) => setForm({ ...form, email: v })}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            {/* Password */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>PASSWORD</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={17} color="#064E3B" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Enter your password"
+                  placeholderTextColor="#A3A3A3"
+                  secureTextEntry={!showPassword}
+                  style={[styles.input, styles.inputWithToggle]}
+                  value={form.password}
+                  onChangeText={(v) => setForm({ ...form, password: v })}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  style={styles.eyeBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={showPassword ? '#064E3B' : '#A3A3A3'}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Shop Name */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>SHOP NAME</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="storefront-outline" size={17} color="#064E3B" style={styles.inputIcon} />
+                <TextInput
+                  placeholder="Enter your shop name"
+                  placeholderTextColor="#A3A3A3"
+                  style={styles.input}
+                  value={form.shopName}
+                  onChangeText={(v) => setForm({ ...form, shopName: v })}
+                />
+              </View>
+            </View>
+
+            {/* Category Selector */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>CATEGORY</Text>
+              <TouchableOpacity
+                style={styles.selector}
+                onPress={() => setShowDropdown(!showDropdown)}
+              >
+                <View style={styles.selectorLeft}>
+                  <Ionicons name="grid-outline" size={17} color="#064E3B" style={styles.inputIcon} />
+                  <Text style={[styles.selectorText, form.category && { color: '#0A0A0A' }]}>
+                    {form.category || 'Select a category'}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={showDropdown ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#A3A3A3"
+                />
+              </TouchableOpacity>
+
+              {showDropdown && (
+                <View style={styles.dropdownList}>
+                  {categories.map((cat, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[
+                        styles.dropdownItem,
+                        i === categories.length - 1 && { borderBottomWidth: 0 }
+                      ]}
+                      onPress={() => { setForm({ ...form, category: cat }); setShowDropdown(false); }}
+                    >
+                      <Text style={[
+                        styles.dropdownText,
+                        form.category === cat && { color: '#064E3B', fontWeight: '700' }
+                      ]}>
+                        {cat}
+                      </Text>
+                      {form.category === cat && (
+                        <Ionicons name="checkmark" size={16} color="#064E3B" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Location Box */}
             <View style={styles.locationBox}>
               <View style={styles.locationInfo}>
                 <MaterialCommunityIcons name="map-marker-radius" size={24} color="#064E3B" />
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.locTitle}>Shop Location</Text>
                   <Text style={styles.locSub} numberOfLines={2}>
-                    {form.address || (location ? 'Coordinates Captured' : 'Not set')}
+                    {form.address || (location ? 'Coordinates Captured' : 'Not set yet')}
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.locAction} onPress={getLocation} disabled={locLoading}>
-                {locLoading ? <ActivityIndicator size="small" color="#064E3B" /> : <Text style={styles.locActionText}>{location ? 'Change' : 'Get Location'}</Text>}
+              <TouchableOpacity
+                style={styles.locAction}
+                onPress={getLocation}
+                disabled={locLoading}
+              >
+                {locLoading
+                  ? <ActivityIndicator size="small" color="#064E3B" />
+                  : <Text style={styles.locActionText}>{location ? 'Change' : 'Get Location'}</Text>
+                }
               </TouchableOpacity>
             </View>
 
-            {/* SUBMIT */}
-            <TouchableOpacity style={[styles.mainBtn, loading && styles.btnDisabled]} onPress={handleSignup} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.mainBtnText}>Register Shop</Text>}
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[styles.mainBtn, loading && styles.btnDisabled]}
+              onPress={handleSignup}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <View style={styles.btnInner}>
+                  <Text style={styles.mainBtnText}>Register Shop</Text>
+                  <Ionicons name="arrow-forward-outline" size={18} color="#fff" />
+                </View>
+              )}
             </TouchableOpacity>
+
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/login')}>
+                <Text style={styles.link}>Login</Text>
+              </TouchableOpacity>
+            </View>
 
           </ScrollView>
         </KeyboardAvoidingView>
@@ -187,34 +324,222 @@ export default function MerchantSignup() {
    4. STYLES
 ───────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  screenWrapper: { flex: 1, backgroundColor: '#000' },
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFF' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111' },
-  backBtn: { padding: 8 },
+  screenWrapper: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
 
-  scrollContent: { padding: 24, paddingBottom: 60 },
-  sectionHeader: { marginBottom: 24 },
-  sectionTitle: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  sectionSub: { fontSize: 14, color: '#6B7280', marginTop: 4 },
+  scrollContent: {
+    paddingHorizontal: 28,
+    paddingVertical: 32,
+    paddingBottom: 60,
+  },
 
-  input: { backgroundColor: '#FFF', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB', fontSize: 16 },
-  
-  selector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB' },
-  selectorText: { fontSize: 16, color: '#9CA3AF' },
-  
-  dropdownList: { backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 16, overflow: 'hidden' },
-  dropdownItem: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  dropdownText: { fontSize: 15, color: '#374151' },
+  /* ── Brand ── */
+  brandSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoPlaceholder: {
+    width: 84,
+    height: 84,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+    overflow: 'hidden',
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  brandName: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#064E3B',
+    letterSpacing: -1.5,
+  },
+  brandTagline: {
+    fontSize: 13,
+    color: '#A3A3A3',
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
 
-  locationBox: { backgroundColor: '#F0FDF4', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#DCFCE7', marginBottom: 30 },
-  locationInfo: { flexDirection: 'row', alignItems: 'center' },
-  locTitle: { fontSize: 15, fontWeight: '700', color: '#064E3B' },
-  locSub: { fontSize: 13, color: '#166534', marginTop: 2 },
-  locAction: { alignSelf: 'flex-end', marginTop: 10, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#064E3B' },
-  locActionText: { fontSize: 12, fontWeight: '700', color: '#064E3B' },
+  /* ── Form Header ── */
+  formTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0A0A0A',
+    letterSpacing: -0.4,
+  },
+  formSub: {
+    fontSize: 14,
+    color: '#A3A3A3',
+    marginTop: 4,
+    marginBottom: 28,
+  },
 
-  mainBtn: { backgroundColor: '#064E3B', paddingVertical: 18, borderRadius: 14, alignItems: 'center', marginTop: 10, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8 },
-  btnDisabled: { opacity: 0.7 },
-  mainBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' }
+  /* ── Fields ── */
+  fieldGroup: {
+    marginBottom: 18,
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0A0A0A',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 14,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#0A0A0A',
+  },
+  inputWithToggle: {
+    paddingRight: 4,
+  },
+  eyeBtn: {
+    paddingLeft: 8,
+    paddingVertical: 4,
+  },
+
+  /* ── Selector ── */
+  selector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  selectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  selectorText: {
+    fontSize: 15,
+    color: '#A3A3A3',
+  },
+  dropdownList: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownText: {
+    fontSize: 15,
+    color: '#374151',
+  },
+
+  /* ── Location ── */
+  locationBox: {
+    backgroundColor: '#F0FDF4',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    marginBottom: 30,
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#064E3B',
+  },
+  locSub: {
+    fontSize: 13,
+    color: '#166534',
+    marginTop: 2,
+  },
+  locAction: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#064E3B',
+  },
+  locActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#064E3B',
+  },
+
+  /* ── Button ── */
+  mainBtn: {
+    backgroundColor: '#064E3B',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: '#064E3B',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  btnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  btnDisabled: {
+    backgroundColor: '#6B7280',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  mainBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  /* ── Footer ── */
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 28,
+  },
+  footerText: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  link: {
+    color: '#064E3B',
+    fontWeight: '800',
+    fontSize: 14,
+  },
 });

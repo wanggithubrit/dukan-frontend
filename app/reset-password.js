@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
-const BASE_URL = 'http://10.194.216.149:8000';
+const BASE_URL = "https://api.mydukan.online";
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -63,7 +63,7 @@ export default function ResetPassword() {
       } else {
         Alert.alert('Update Failed', data.error || 'Something went wrong.');
       }
-    } catch (err) {
+    } catch (_err) {
       Alert.alert('Network Error', 'Check your connection and try again.');
     } finally {
       setLoading(false);
@@ -99,7 +99,7 @@ export default function ResetPassword() {
           <View style={styles.textGroup}>
             <Text style={styles.title}>Secure Your Account</Text>
             <Text style={styles.subtitle}>
-              Create a strong password that you don't use elsewhere.
+              Create a strong password that you {'don\'t'} use elsewhere.
             </Text>
           </View>
 

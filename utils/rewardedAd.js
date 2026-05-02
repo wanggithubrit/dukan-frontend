@@ -1,13 +1,13 @@
 
 import {
-    RewardedAd,
-    RewardedAdEventType,
-    TestIds,
+  RewardedAd,
+  RewardedAdEventType,
+  TestIds,
 } from 'react-native-google-mobile-ads';
 
 const adUnitId = __DEV__
   ? TestIds.REWARDED
-  : 'ca-app-pub-3940256099942544/5224354917';
+  : 'ca-app-pub-9676497994699972/5941082220';
 
 let rewarded = RewardedAd.createForAdRequest(adUnitId);
 let isLoaded = false;

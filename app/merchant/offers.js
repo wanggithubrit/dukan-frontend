@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = 'http://10.194.216.149:8000';
+const BASE_URL = "https://api.mydukan.online";
 
 
 export default function Offers() {
@@ -181,6 +181,7 @@ const OfferCard = React.memo(({ offer, onDelete, deletingId }) => {
     </View>
   );
 });
+OfferCard.displayName = 'OfferCard';
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
