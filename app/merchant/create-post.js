@@ -20,7 +20,6 @@ import {
   Alert,
   Animated,
   Image,
-  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -29,15 +28,16 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { loadRewardedAd, showRewardedAd } from '../../utils/rewardedAd';
+import { showRewardedAd } from '../../utils/rewardedAd';
+
 
 /* ─────────────────────────────────────────────
    2. CONSTANTS
 ───────────────────────────────────────────── */
-const BASE_URL = 'https://api.mydukan.online';
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 const C = Object.freeze({
   bg:            '#FFFFFF',
@@ -82,7 +82,6 @@ const MODES = Object.freeze([
     desc:          'Promote a discount or sale to your customers',
     tip:           'Short, clear offer titles grab attention fast.',
     requiresImage: false,
-    // No photo step for offers
     hidePhoto:     true,
   },
 ]);
@@ -109,8 +108,12 @@ function formReducer(state, action) {
 ───────────────────────────────────────────── */
 
 const NavBtn = memo(({ icon, label, onPress, active }) => (
-  <TouchableOpacity style={styles.navTab} onPress={onPress} activeOpacity={0.7}>
-    <Ionicons name={icon} size={22} color={active ? C.accent : '#bbb'} />
+  <TouchableOpacity
+    style={[styles.navTab, active && styles.navTabActive]}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <Ionicons name={icon} size={22} color={active ? '#00E676' : '#8E9A96'} />
     <Text style={active ? styles.navLabelActive : styles.navLabel}>{label}</Text>
   </TouchableOpacity>
 ));
@@ -267,8 +270,11 @@ export default function CreatePost() {
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const isMounted = useRef(true);
+  // ✅ FIX: ref to always hold the latest upload function, breaking stale closure
+  const uploadRef = useRef(null);
 
   const animateInRef = useRef(null);
+  
   animateInRef.current = () => {
     fadeAnim.setValue(0.3);
     slideAnim.setValue(14);
@@ -281,7 +287,6 @@ export default function CreatePost() {
   useEffect(() => () => { isMounted.current = false; }, []);
 
   useEffect(() => {
-    InteractionManager.runAfterInteractions(() => { loadRewardedAd(); });
     Animated.parallel([
       Animated.timing(fadeAnim,  { toValue: 1, duration: 360, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 360, useNativeDriver: true }),
@@ -295,16 +300,28 @@ export default function CreatePost() {
     animateInRef.current();
   }, []);
 
-  const fetchPlan = useCallback(async () => {
-    try {
-      const user_id = await AsyncStorage.getItem('user_id');
-      if (!user_id) return;
-      const res  = await fetch(`${BASE_URL}/api/merchant/dashboard/${user_id}/`);
-      const data = await res.json();
-      if (isMounted.current) setPlanData({ plan: data.plan, stats: data.stats });
-    } catch {}
-  }, []);
+const fetchPlan = useCallback(async () => {
+  try {
+    const user_id = await AsyncStorage.getItem('user_id');
 
+    if (!user_id) return;
+
+    const res = await fetch(
+      `${BASE_URL}/api/merchant/dashboard/${user_id}/`
+    );
+
+    const data = await res.json();
+
+    if (isMounted.current) {
+      setPlanData({
+        plan: data.plan,
+        stats: data.stats,
+      });
+    }
+  } catch (e) {
+    console.log('FETCH PLAN ERROR:', e);
+  }
+}, []);
   useEffect(() => { fetchPlan(); }, [fetchPlan]);
 
   const { plan, stats } = planData;
@@ -313,7 +330,6 @@ export default function CreatePost() {
   const isItemLimitReached = useMemo(() => plan?.type === 'free' && (stats?.items ?? 0) >= 15, [plan, stats]);
   const credits            = useMemo(() => plan?.credits ?? 0, [plan]);
 
-  // Checklist per mode — offer has no photo check
   const checks = useMemo(() => {
     if (mode === 'cover') return [
       { done: !!image, label: 'Banner photo added' },
@@ -323,7 +339,6 @@ export default function CreatePost() {
       { done: !!form.price.trim(), label: 'Price entered (₹)' },
       { done: !!image,             label: 'Photo added (optional)' },
     ];
-    // offer
     return [
       { done: !!form.title.trim(),    label: 'Offer title entered' },
       { done: !!form.discount.trim(), label: 'Discount % or amount set' },
@@ -385,7 +400,9 @@ export default function CreatePost() {
     if (loading) return;
     Keyboard.dismiss();
 
-    const token = await AsyncStorage.getItem('access_token');
+    const token = await AsyncStorage.getItem('token');
+console.log('UPLOAD TOKEN:', token);
+    
     if (!token) return Alert.alert('Session Expired', 'Please log in again.');
 
     if (mode === 'cover' && !image)
@@ -395,15 +412,31 @@ export default function CreatePost() {
     if (mode === 'offer' && !form.title.trim())
       return Alert.alert('Offer Title Required', 'Please enter the offer title.');
 
+    console.log('UPLOAD URL:', `${BASE_URL}${ENDPOINTS[mode]}`);
+    console.log('TOKEN EXISTS:', !!token);
+    console.log('MODE:', mode);
+    console.log('IMAGE:', image);
+
     setLoading(true);
     try {
       const fd = new FormData();
       if (image) {
-        fd.append('image', {
-          uri:  Platform.OS === 'android' ? image.uri : image.uri.replace('file://', ''),
-          name: 'upload.jpg',
-          type: 'image/jpeg',
-        });
+        if (image?.uri) {
+  const filename = image.uri.split('/').pop() || 'photo.jpg';
+
+  const ext = filename.split('.').pop()?.toLowerCase();
+
+  let mime = 'image/jpeg';
+
+  if (ext === 'png') mime = 'image/png';
+  if (ext === 'webp') mime = 'image/webp';
+
+  fd.append('image', {
+    uri: image.uri,
+    name: filename,
+    type: mime,
+  });
+}
       }
       if (mode === 'item') {
         fd.append('name', form.name.trim());
@@ -416,9 +449,18 @@ export default function CreatePost() {
       }
 
       const res  = await fetch(`${BASE_URL}${ENDPOINTS[mode]}`, {
-        method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+        method: 'POST',headers: {
+  Authorization: `Bearer ${token}`,
+  Accept: 'application/json',
+}, body: fd,
       });
-      const data = await res.json();
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (e) {
+        console.log('NON JSON RESPONSE');
+      }
 
       if (!res.ok) {
         if (res.status === 403 && data.error === 'limit_reached') {
@@ -432,11 +474,24 @@ export default function CreatePost() {
                 onPress: () =>
                   showRewardedAd(async () => {
                     try {
+                      const rewardToken = await AsyncStorage.getItem('token');
                       await fetch(`${BASE_URL}/api/reward/`, {
-                        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${rewardToken}`,
+                        },
                       });
-                      upload();
-                    } catch { Alert.alert('Error', 'Could not apply reward. Try again.'); }
+
+                      // reset loading before retry
+                      if (isMounted.current) setLoading(false);
+
+                      // retry upload using latest function ref
+                      setTimeout(() => {
+                        uploadRef.current?.();
+                      }, 50);
+                    } catch {
+                      Alert.alert('Error', 'Could not apply reward. Try again.');
+                    }
                   }),
               },
               { text: 'Not Now', style: 'cancel' },
@@ -457,6 +512,11 @@ export default function CreatePost() {
       if (isMounted.current) setLoading(false);
     }
   }, [loading, mode, image, form, credits, resetForm, fetchPlan, router]);
+
+  // ✅ Keep uploadRef in sync with the latest upload function after every render.
+  useEffect(() => {
+    uploadRef.current = upload;
+  }, [upload]);
 
   // ── Nav ──
   const goHome    = useCallback(() => router.push('/merchant/home'),        [router]);
@@ -592,7 +652,6 @@ export default function CreatePost() {
 
                   {mode === 'offer' && (
                     <>
-                     
                       <StyledInput
                         label="Offer Title"
                         required
@@ -602,15 +661,15 @@ export default function CreatePost() {
                         onChangeText={setTitle}
                         autoCapitalize="words"
                       />
-                       <StyledInput
-                          label="Discount"
-                          iconName="pricetag-outline"
-                          placeholder="e.g. 20% OFF or ₹100 OFF"
-                          value={form.discount}
-                          onChangeText={setDiscount}
-                          hint="Type exactly what customers will see"
-                          keyboardType="default"   // 🔥 ADD THIS
-                        />
+                      <StyledInput
+                        label="Discount"
+                        iconName="pricetag-outline"
+                        placeholder="e.g. 20% OFF or ₹100 OFF"
+                        value={form.discount}
+                        onChangeText={setDiscount}
+                        hint="Type exactly what customers will see"
+                        keyboardType="default"
+                      />
                       <StyledInput
                         label="Short Description"
                         iconName="text-outline"
@@ -671,8 +730,8 @@ export default function CreatePost() {
 
       {/* ── Footer nav ── */}
       <View style={styles.footer}>
-        <NavBtn icon="home-outline"   label="Home"    onPress={goHome} />
-        <NavBtn icon="grid-outline"   label="Items"   onPress={goItems} />
+        <NavBtn icon="home-outline" label="Home" onPress={goHome} />
+        <NavBtn icon="grid-outline" label="Items" onPress={goItems} />
         <TouchableOpacity style={styles.addBtn} onPress={goCreate} activeOpacity={0.85}>
           <Ionicons name="add" size={28} color={C.white} />
         </TouchableOpacity>
@@ -864,21 +923,23 @@ const styles = StyleSheet.create({
 
   footer: {
     position: 'absolute', bottom: 0, width: '100%',
-    backgroundColor: C.white,
+    backgroundColor: '#0F2118',
     flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingVertical: 10, paddingBottom: 16,
-    borderTopWidth: 0.5, borderColor: '#eee',
+    paddingVertical: 10, paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    borderTopWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)',
     elevation: 12,
   },
-  navTab:         { alignItems: 'center', gap: 2 },
-  navLabel:       { fontSize: 10, color: '#bbb', fontWeight: '500' },
-  navLabelActive: { fontSize: 10, color: C.accent, fontWeight: '500' },
+  navTab:         { alignItems: 'center', gap: 2, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16 },
+  navTabActive:   { backgroundColor: 'rgba(255,255,255,0.08)' },
+  navLabel:       { fontSize: 10, color: '#8E9A96', fontWeight: '600' },
+  navLabelActive: { fontSize: 10, color: '#00E676', fontWeight: '700' },
   addBtn: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: C.accent,
+    backgroundColor: '#1b4d3e',
     justifyContent: 'center', alignItems: 'center',
     elevation: 6,
-    shadowColor: C.accent, shadowOpacity: 0.4, shadowRadius: 8,
+    shadowColor: '#1b4d3e', shadowOpacity: 0.4, shadowRadius: 8,
     marginBottom: 8,
+    borderWidth: 1, borderColor: '#00E676',
   },
 });

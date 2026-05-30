@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 
-const BASE_URL = 'https://api.mydukan.online'
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 export default function Upgrade() {
 

@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = "https://api.mydukan.online";
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 export default function EditShop() {
   const router = useRouter();
@@ -30,7 +30,8 @@ export default function EditShop() {
     name: '',
     phone: '',
     whatsapp: '',
-    address: ''
+    address: '',
+    description: ''
   });
 
   const handleInputChange = (key, value) => {
@@ -68,6 +69,7 @@ export default function EditShop() {
           phone: data.shop.phone || '',
           whatsapp: data.shop.whatsapp_number || '',
           address: data.shop.address || '',
+          description: data.shop.description || '',
         });
       }
     } catch (err) {
@@ -87,7 +89,10 @@ export default function EditShop() {
     if (!formData.name.trim()) return Alert.alert('Error', 'Shop name is required');
     try {
       setSaving(true);
-      const token = await AsyncStorage.getItem('access_token');
+      const [[, t], [, at]] = await AsyncStorage.multiGet(['token', 'access_token']);
+      const token = t || at;
+      if (!token) return Alert.alert('Session Expired', 'Please log in again.');
+
       const res = await fetch(`${BASE_URL}/api/shop/update/`, {
         method: 'PUT',
         headers: {
@@ -99,6 +104,7 @@ export default function EditShop() {
           phone: formData.phone,
           whatsapp_number: formData.whatsapp,
           address: formData.address,
+          description: formData.description,
           latitude: coords?.latitude,
           longitude: coords?.longitude,
         }),
@@ -173,6 +179,15 @@ export default function EditShop() {
           placeholder="Enter full shop address"
           value={formData.address}
           onChangeText={(val) => handleInputChange('address', val)}
+          style={[styles.input, styles.textArea]}
+          multiline
+        />
+
+        <Text style={styles.label}>Shop Description / Colony / Landmark (Optional)</Text>
+        <TextInput
+          placeholder="Colony name, ward number, nearby landmark, or shop description"
+          value={formData.description}
+          onChangeText={(val) => handleInputChange('description', val)}
           style={[styles.input, styles.textArea]}
           multiline
         />

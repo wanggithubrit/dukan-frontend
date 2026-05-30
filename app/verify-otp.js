@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = 'https://api.mydukan.online'
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 export default function VerifyOtp() {
   const router = useRouter();
@@ -48,10 +48,13 @@ export default function VerifyOtp() {
 
       if (res.ok) {
         router.push({
-          pathname: '/reset-password',
-          params: { email }
-        });
-      } else {
+        pathname: '/reset-password',
+        params: {
+        email,
+        otp   // 🔥 THIS IS THE FIX
+      }
+});
+} else {
         Alert.alert('Verification Failed', data.error || 'The code you entered is incorrect or expired.');
       }
     } catch (_err) {

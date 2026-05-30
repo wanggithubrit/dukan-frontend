@@ -1,12 +1,13 @@
 /* ─────────────────────────────────────────────
    1. IMPORTS
 ───────────────────────────────────────────── */
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -14,25 +15,57 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = "https://api.mydukan.online";
-
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
+const RESEND_COOLDOWN = 120; // 2 minutes in seconds
 
 export default function ForgotPassword() {
   const router = useRouter();
 
   /* ─────────────────────────────────────────────
-     2. LOGIC (State & Functions)
+     2. STATE
   ───────────────────────────────────────────── */
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const intervalRef = useRef(null);
 
+  /* ─────────────────────────────────────────────
+     3. TIMER LOGIC
+  ───────────────────────────────────────────── */
+  useEffect(() => {
+    return () => clearInterval(intervalRef.current); // cleanup on unmount
+  }, []);
+
+  const startTimer = () => {
+    setTimer(RESEND_COOLDOWN);
+    intervalRef.current = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const formatTimer = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  /* ─────────────────────────────────────────────
+     4. SEND / RESEND OTP
+  ───────────────────────────────────────────── */
   const sendOtp = async () => {
     if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address to receive the OTP.');
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
@@ -47,57 +80,62 @@ export default function ForgotPassword() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        router.push({
-          pathname: '/verify-otp',
-          params: { email: email.trim() }
-        });
+        setOtpSent(true);
+        startTimer();
+        Alert.alert('OTP Sent', 'Check your inbox for the OTP.');
+        router.push({ pathname: '/verify-otp', params: { email: email.trim() } });
       } else {
-        Alert.alert('Error', data.error || 'User not found or server error.');
+        Alert.alert('Error', data.error || 'Failed to send OTP');
       }
     } catch (_err) {
-      Alert.alert('Network Error', 'Check your internet connection and try again.');
+      Alert.alert('Network Error', 'Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   /* ─────────────────────────────────────────────
-     3. UI RENDER
+     5. UI RENDER
   ───────────────────────────────────────────── */
   return (
     <View style={styles.screenWrapper}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <SafeAreaView style={styles.container}>
-        
+
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#111" />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={22} color="#111" />
           </TouchableOpacity>
         </View>
 
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.content}
         >
-          {/* ICON & TEXT */}
+          {/* ICON — replace source with your own image */}
           <View style={styles.iconContainer}>
             <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="lock-reset" size={40} color="#064E3B" />
+              <Image
+                source={require('../assets/images/logo_green.png')} // 🔁 Replace with your image
+                style={styles.iconImage}
+                resizeMode="contain"
+              />
             </View>
           </View>
 
+          {/* TEXT */}
           <View style={styles.textGroup}>
             <Text style={styles.title}>Reset Password</Text>
             <Text style={styles.subtitle}>
-              Enter the email associated with your account and {'we\'ll'} send an OTP to reset your password.
+              Enter the email associated with your account and we will send an OTP to reset your password.
             </Text>
           </View>
 
           {/* FORM */}
           <View style={styles.form}>
             <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
               <TextInput
                 placeholder="Email Address"
                 placeholderTextColor="#9CA3AF"
@@ -106,26 +144,42 @@ export default function ForgotPassword() {
                 style={styles.input}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                returnKeyType="done"
+                onSubmitEditing={sendOtp}
               />
             </View>
 
-            <TouchableOpacity 
-              style={[styles.mainBtn, loading && styles.btnDisabled]} 
+            <TouchableOpacity
+              style={[styles.mainBtn, loading && styles.btnDisabled]}
               onPress={sendOtp}
               disabled={loading}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.mainBtnText}>Send OTP</Text>
-              )}
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.mainBtnText}>{otpSent ? 'Resend OTP' : 'Send OTP'}</Text>
+              }
             </TouchableOpacity>
+
+            {/* RESEND TIMER */}
+            {otpSent && (
+              <View style={styles.resendRow}>
+                {timer > 0 ? (
+                  <Text style={styles.resendTimerText}>
+                    Resend OTP in <Text style={styles.timerHighlight}>{formatTimer(timer)}</Text>
+                  </Text>
+                ) : (
+                  <TouchableOpacity onPress={sendOtp} disabled={loading} activeOpacity={0.7}>
+                    <Text style={styles.resendActiveText}>Resend OTP</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
-          {/* BACK TO LOGIN */}
-          <TouchableOpacity 
-            style={styles.footerLink} 
+          {/* FOOTER */}
+          <TouchableOpacity
+            style={styles.footerLink}
             onPress={() => router.replace('/login')}
           >
             <Text style={styles.footerText}>
@@ -140,16 +194,13 @@ export default function ForgotPassword() {
 }
 
 /* ─────────────────────────────────────────────
-   4. STYLES
+   6. STYLES
 ───────────────────────────────────────────── */
 const styles = StyleSheet.create({
   screenWrapper: { flex: 1, backgroundColor: '#000' },
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
+
+  header: { paddingHorizontal: 16, paddingVertical: 12 },
   backBtn: {
     padding: 8,
     borderRadius: 12,
@@ -157,51 +208,39 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
   },
 
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
+  content: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
 
-  iconContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
+  iconContainer: { alignItems: 'center', marginBottom: 28 },
   iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     backgroundColor: '#ECFDF5',
+    borderWidth: 2,
+    borderColor: '#A7F3D0',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
+  iconImage: { width: 48, height: 48 }, // adjust to your image size
 
-  textGroup: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    textAlign: 'center',
-  },
+  textGroup: { alignItems: 'center', marginBottom: 36 },
+  title: { fontSize: 26, fontWeight: '800', color: '#111827', textAlign: 'center' },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 22,
-    paddingHorizontal: 10,
+    marginTop: 8,
+    lineHeight: 21,
+    paddingHorizontal: 12,
   },
 
-  form: {
-    width: '100%',
-  },
+  form: { width: '100%' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -209,50 +248,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 14,
-    paddingHorizontal: 16,
-    marginBottom: 24,
+    paddingHorizontal: 14,
+    marginBottom: 20,
   },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: '#111827',
-  },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, paddingVertical: 15, fontSize: 15, color: '#111827' },
 
   mainBtn: {
     backgroundColor: '#064E3B',
-    paddingVertical: 18,
+    paddingVertical: 17,
     borderRadius: 14,
     alignItems: 'center',
+    elevation: 3,
     shadowColor: '#064E3B',
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
-  btnDisabled: {
-    opacity: 0.7,
-    backgroundColor: '#374151',
-  },
-  mainBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  btnDisabled: { opacity: 0.65, backgroundColor: '#374151' },
+  mainBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
-  footerLink: {
-    marginTop: 30,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  boldText: {
-    color: '#064E3B',
-    fontWeight: '700',
-  },
+  resendRow: { alignItems: 'center', marginTop: 16 },
+  resendTimerText: { fontSize: 13, color: '#9CA3AF' },
+  timerHighlight: { color: '#064E3B', fontWeight: '700' },
+  resendActiveText: { fontSize: 14, color: '#064E3B', fontWeight: '700' },
+
+  footerLink: { marginTop: 32, alignItems: 'center' },
+  footerText: { fontSize: 14, color: '#6B7280' },
+  boldText: { color: '#064E3B', fontWeight: '700' },
 });

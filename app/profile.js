@@ -2,22 +2,26 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Image } from 'expo-image';
 import {
   ActivityIndicator,
   Animated,
-  Image,
   Linking,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-const BASE_URL = "https://api.mydukan.online";
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
+  white:     '#FFFFFF',   // ← add
+  textMuted: '#9CAAA5',   // ← add
+  surface:   '#FFFFFF', 
   primary:    '#2F5D50',
   primaryLt:  '#3D7A68',
   accent:     '#7ECFB3',
@@ -29,6 +33,7 @@ const C = {
   textLo:     '#A0BAB4',
   danger:     '#FF6B6B',
   green:      '#22C55E',
+  blue:       '#3B82F6',
 };
 
 // ── Static (outside component — never recreated) ──────────────────────────────
@@ -107,7 +112,7 @@ export default function Profile() {
   const updateAvatar = useCallback(async (key) => {
     if (!key) return;
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const token = await AsyncStorage.getItem('token');
       const res = await fetch(`${BASE_URL}/api/avatar/update/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -122,7 +127,7 @@ export default function Profile() {
 
   const handleLogout = useCallback(async () => {
     await Promise.all([
-      AsyncStorage.removeItem('access_token'),
+      AsyncStorage.removeItem('token'),
       AsyncStorage.removeItem('user_id'),
     ]);
     router.replace('/role');
@@ -303,14 +308,14 @@ export default function Profile() {
             <TouchableOpacity
               style={[s.socialCard, { marginRight: 12 }]}
               activeOpacity={0.85}
-              onPress={() => Linking.openURL('https://www.instagram.com/dukan.service/')}
+              onPress={() => Linking.openURL('https://www.instagram.com/dukand.service/')}
             >
               <View style={[s.socialIcon, { backgroundColor: '#E1306C' }]}>
                 <Ionicons name="logo-instagram" size={19} color="#fff" />
               </View>
               <View>
                 <Text style={s.socialName}>Instagram</Text>
-                <Text style={s.socialHandle}>@dukan.service</Text>
+                <Text style={s.socialHandle}>@dukand.service</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity
@@ -323,32 +328,40 @@ export default function Profile() {
               </View>
               <View>
                 <Text style={s.socialName}>YouTube</Text>
-                <Text style={s.socialHandle}>@dukan-316</Text>
+                <Text style={s.socialHandle}>@dukand-316</Text>
               </View>
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text style={s.version}>Dukan · v1.0.0</Text>
+        <Text style={s.version}>dukanpersonal316@gmail.com</Text>
       </Animated.ScrollView>
 
-      {/* BOTTOM NAV */}
       <View style={s.bottomNav}>
-        <TouchableOpacity style={s.tab} onPress={() => router.push('/shop/home')}>
-          <View style={[s.iconWrapper, pathname === '/shop/home' && s.activeTab]}>
-            <Ionicons name="home" size={24} color={pathname === '/shop/home' ? '#fff' : '#888'} />
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.tab} onPress={() => router.push('/favorites')}>
-          <View style={[s.iconWrapper, pathname === '/favorites' && s.activeTab]}>
-            <Ionicons name="heart-outline" size={24} color={pathname === '/favorites' ? '#fff' : '#888'} />
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.tab} onPress={() => router.push('/profile')}>
-          <View style={[s.iconWrapper, pathname === '/profile' && s.activeTab]}>
-            <Ionicons name="person-outline" size={24} color={pathname === '/profile' ? '#fff' : '#888'} />
-          </View>
-        </TouchableOpacity>
+        {[
+          { route: '/shop/home', icon: 'home',   iconOutline: 'home-outline',   label: 'Home'      },
+          { route: '/favorites', icon: 'heart',  iconOutline: 'heart-outline',  label: 'Saved'     },
+          { route: '/profile',   icon: 'person', iconOutline: 'person-outline', label: 'Profile'   },
+        ].map(tab => {
+          const active = pathname === tab.route;
+          return (
+            <TouchableOpacity
+              key={tab.route}
+              style={s.navTab}
+              onPress={() => router.push(tab.route)}
+              activeOpacity={0.8}
+            >
+              <View style={[s.navIconWrap, active && s.navIconWrapActive]}>
+                <Ionicons
+                  name={active ? tab.icon : tab.iconOutline}
+                  size={20}
+                  color={active ? C.white : C.textMuted}
+                />
+              </View>
+              <Text style={[s.navLabel, active && s.navLabelActive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </SafeAreaView>
   );
@@ -502,15 +515,50 @@ const s = StyleSheet.create({
     marginTop: 30, letterSpacing: 0.5,
   },
 
-  // Bottom nav
-  bottomNav: {
-    position: 'absolute', bottom: 10, alignSelf: 'center',
-    flexDirection: 'row', width: '90%', backgroundColor: '#fff',
-    borderRadius: 30, paddingVertical: 12, justifyContent: 'space-around',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 }, elevation: 10,
-  },
-  tab:         { alignItems: 'center' },
-  iconWrapper: { padding: 10, borderRadius: 20 },
-  activeTab:   { backgroundColor: C.primary, transform: [{ scale: 1.1 }] },
+ // ── Bottom nav ─────────────────────────────────────────────────────────────
+   bottomNav: {
+     position: 'absolute',
+     bottom: 0,
+     left: 0,
+     right: 0,
+     flexDirection: 'row',
+     backgroundColor: C.surface,
+     borderTopWidth: 0,
+     paddingVertical: 10,
+     paddingHorizontal: 10,
+     paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+     justifyContent: 'space-around',
+     alignItems: 'center',
+     // shadow upward
+     shadowColor: '#000',
+     shadowOpacity: 0.08,
+     shadowRadius: 16,
+     shadowOffset: { width: 0, height: -4 },
+     elevation: 12,
+   },
+   navTab: {
+     alignItems: 'center',
+     gap: 3,
+     flex: 1,
+     marginBottom: 5,
+   },
+   navIconWrap: {
+     width: 42,
+     height: 36,
+     borderRadius: 18,
+     alignItems: 'center',
+     justifyContent: 'center',
+   },
+   navIconWrapActive: {
+     backgroundColor: C.primary,
+   },
+   navLabel: {
+     fontSize: 10,
+     fontWeight: '600',
+     color: C.textMuted,
+   },
+   navLabelActive: {
+     color: C.primary,
+   },
+ 
 });

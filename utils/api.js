@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://api.mydukan.online';
+
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 /* ───────── REFRESH TOKEN ───────── */
 export const refreshAccessToken = async () => {

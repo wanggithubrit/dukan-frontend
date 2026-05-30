@@ -761,14 +761,14 @@ export default function Home() {
         // silent fail
       }
 
-      if (cachedLat && cachedLon) {
-        const lat = parseFloat(cachedLat);
-        const lon = parseFloat(cachedLon);
-        await Promise.all([fetchShops(lat, lon), fetchFeaturedBanners(lat, lon)]);
-      } else {
-        await getUserLocation();
-        const { latitude: lat, longitude: lon } = coordsRef.current ?? {};
-        if (lat && lon) await fetchFeaturedBanners(lat, lon);
+      // Always request fresh location on startup to overwrite stale cached coordinates
+      await getUserLocation();
+      const { latitude: lat, longitude: lon } = coordsRef.current ?? {};
+      if (lat && lon) {
+        await Promise.all([
+          fetchShops(lat, lon),
+          fetchFeaturedBanners(lat, lon)
+        ]);
       }
 
       hasInitialized.current = true;

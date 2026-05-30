@@ -4,38 +4,52 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Image } from 'expo-image';
 import {
-  ActivityIndicator, FlatList, Image, InteractionManager,
-  Platform, RefreshControl, StyleSheet, Text, TextInput,
-  TouchableOpacity, View
+  ActivityIndicator, FlatList, InteractionManager,
+  Modal,
+  Platform, RefreshControl, StyleSheet,
+  Switch,
+  Text, TextInput,
+  TouchableOpacity, TouchableWithoutFeedback, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AdBanner from '../../components/AdBanner';
 
-const BASE_URL = "https://api.mydukan.online";
-const POLL_MS  = 20_000;
-const MAX_BACKOFF_MS = 300_000; // 5 min ceiling
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
+const POLL_MS  = 60_000;
+const MAX_BACKOFF_MS = 300_000;
 
 const getImageUrl = (path) => {
   if (!path) return 'https://via.placeholder.com/150';
   return path.startsWith('http') ? path : `${BASE_URL}${path}`;
 };
 
-/* ─── Sub-components (unchanged) ─── */
+/* ─── Sub-components ─── */
 const NavBtn = React.memo(({ icon, label, onPress, active }) => (
-  <TouchableOpacity style={styles.navTab} onPress={onPress} activeOpacity={0.7}>
-    <Ionicons name={icon} size={22} color={active ? '#2F5D50' : '#bbb'} />
-    <Text style={[styles.navLabel, active && { color: '#2F5D50' }]}>{label}</Text>
+  <TouchableOpacity
+    style={[styles.navTab, active && styles.navTabActive]}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
+    <Ionicons name={icon} size={22} color={active ? '#00E676' : '#8E9A96'} />
+    <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
   </TouchableOpacity>
 ));
 NavBtn.displayName = 'NavBtn';
 
-const ProductCard = React.memo(({ item, onDelete }) => (
-  <View style={styles.card}>
+const ProductCard = React.memo(({ item, onDelete, onEdit }) => (
+  <TouchableOpacity style={styles.card} activeOpacity={0.92} onPress={() => onEdit(item)}>
     <View style={styles.imageWrap}>
       <Image source={{ uri: getImageUrl(item.image) }} style={styles.cardImg} resizeMode="cover" />
       <TouchableOpacity style={styles.delBtn} onPress={() => onDelete(item.id)}>
         <Ionicons name="trash-outline" size={14} color="#FF4444" />
       </TouchableOpacity>
+      {item.track_quantity && item.quantity_status === 'out' && (
+        <View style={styles.outOfStockBadge}>
+          <Text style={styles.outOfStockText}>Out of Stock</Text>
+        </View>
+      )}
     </View>
     <View style={styles.cardBody}>
       <Text style={styles.cardCat}>{item.category || 'GENERAL'}</Text>
@@ -43,8 +57,15 @@ const ProductCard = React.memo(({ item, onDelete }) => (
       <Text style={styles.cardPrice}>
         {item.price ? `₹${Number(item.price).toLocaleString()}` : 'No Price'}
       </Text>
+      {item.track_quantity && (
+        <View style={styles.stockWrap}>
+          {item.quantity_status === 'out' && <Text style={styles.stockOut}>Out of Stock</Text>}
+          {item.quantity_status === 'low' && <Text style={styles.stockLow}>Only {item.quantity} left</Text>}
+          {item.quantity_status === 'in' && <Text style={styles.stockIn}>In Stock ({item.quantity})</Text>}
+        </View>
+      )}
     </View>
-  </View>
+  </TouchableOpacity>
 ));
 ProductCard.displayName = 'ProductCard';
 
@@ -61,27 +82,65 @@ const EmptyState = React.memo(({ query }) => (
 ));
 EmptyState.displayName = 'EmptyState';
 
+/* ─── Quantity Stepper ─── */
+const QuantityStepper = ({ value, onChange }) => {
+  const num = parseInt(value, 10) || 0;
+  return (
+    <View style={styles.stepperRow}>
+      <Text style={styles.stepperLabel}>Quantity</Text>
+      <View style={styles.stepperControls}>
+        <TouchableOpacity
+          style={[styles.stepperBtn, num <= 0 && styles.stepperBtnDisabled]}
+          onPress={() => onChange(String(Math.max(0, num - 1)))}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="remove" size={18} color={num <= 0 ? '#ccc' : '#2F5D50'} />
+        </TouchableOpacity>
+        <TextInput
+          style={styles.stepperInput}
+          value={value}
+          onChangeText={onChange}
+          keyboardType="numeric"
+          textAlign="center"
+        />
+        <TouchableOpacity
+          style={styles.stepperBtn}
+          onPress={() => onChange(String(num + 1))}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="add" size={18} color="#2F5D50" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
 /* ─── Main ─── */
 export default function InventoryPage() {
   const router = useRouter();
 
-  const [products,    setProducts]    = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [refreshing,  setRefreshing]  = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [products,     setProducts]     = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [searchQuery,  setSearchQuery]  = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editName,     setEditName]     = useState('');
+  const [editPrice,    setEditPrice]    = useState('');
+  const [trackQuantity,setTrackQuantity]= useState(false);
+  const [quantity,     setQuantity]     = useState('0');
+  const [saving,       setSaving]       = useState(false);
 
-  const pollTimer    = useRef(null);
-  const isFetching   = useRef(false);
-  const shopIdRef    = useRef(null);
+  const _Razorpay = require('react-native-razorpay');
+  const RazorpayCheckout = _Razorpay && (_Razorpay.default || _Razorpay);
 
-  // ─── NEW: cache token in a ref so polls don't hit AsyncStorage every time ─
-  const tokenRef     = useRef(null);
-  // ─── NEW: keep the last JSON string to detect actual changes ──────────────
-  const lastJsonRef  = useRef(null);
-  // ─── NEW: backoff state for error recovery ────────────────────────────────
-  const backoffRef   = useRef(POLL_MS);
+  const pollTimer   = useRef(null);
+  const isFetching  = useRef(false);
+  const shopIdRef   = useRef(null);
+  const tokenRef    = useRef(null);
+  const lastJsonRef = useRef(null);
+  const backoffRef  = useRef(POLL_MS);
 
-  // ─── Token helper — reads once, then reuses from ref ─────────────────────
   const getToken = useCallback(async () => {
     if (tokenRef.current) return tokenRef.current;
     const [[, t], [, at]] = await AsyncStorage.multiGet(['token', 'access_token']);
@@ -89,11 +148,9 @@ export default function InventoryPage() {
     return tokenRef.current;
   }, []);
 
-  // ─── fetch ────────────────────────────────────────────────────────────────
   const fetchInventory = useCallback(async (silent = false, signal = null) => {
     if (isFetching.current) return;
     isFetching.current = true;
-
     try {
       const [userId, token] = await Promise.all([
         AsyncStorage.getItem('user_id'),
@@ -102,41 +159,31 @@ export default function InventoryPage() {
       if (!userId) return;
 
       if (!shopIdRef.current) {
-        const dashRes = await fetch(`${BASE_URL}/api/merchant/dashboard/${userId}/`, {
+        const dashRes  = await fetch(`${BASE_URL}/api/merchant/dashboard/${userId}/`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           signal,
         });
         const dashData = await dashRes.json();
         shopIdRef.current = dashData?.shop?.id;
       }
-
       if (!shopIdRef.current) return;
 
       const itemsRes  = await fetch(`${BASE_URL}/api/items/${shopIdRef.current}/`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
-        signal, // ← NEW: allows cancellation on unmount
+        signal,
       });
       const itemsData = await itemsRes.json();
       const nextData  = Array.isArray(itemsData) ? itemsData : [];
-
-      // ─── NEW: skip re-render if data hasn't actually changed ──────────────
-      const nextJson = JSON.stringify(nextData);
+      const nextJson  = JSON.stringify(nextData);
       if (nextJson !== lastJsonRef.current) {
         lastJsonRef.current = nextJson;
         React.startTransition(() => setProducts(nextData));
       }
-
-      // ─── NEW: reset backoff on success ────────────────────────────────────
       backoffRef.current = POLL_MS;
-
     } catch (err) {
-      if (err?.name === 'AbortError') return; // silently ignore unmount cancellation
-
+      if (err?.name === 'AbortError') return;
       if (!silent) console.error('Fetch Error:', err);
-
-      // ─── NEW: exponential backoff on error ────────────────────────────────
       backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_MS);
-
     } finally {
       isFetching.current = false;
       setLoading(false);
@@ -144,50 +191,48 @@ export default function InventoryPage() {
     }
   }, [getToken]);
 
-  // ─── polling ──────────────────────────────────────────────────────────────
-  const stopPolling  = useCallback(() => {
-    if (pollTimer.current) { clearInterval(pollTimer.current); pollTimer.current = null; }
+  const stopPolling = useCallback(() => {
+    if (pollTimer.current) { clearTimeout(pollTimer.current); pollTimer.current = null; }
   }, []);
 
   const startPolling = useCallback((abortCtrl) => {
     stopPolling();
-    // ─── NEW: use current backoff interval, re-schedule dynamically on errors
     const tick = () => {
       fetchInventory(true, abortCtrl.signal);
-      // Re-schedule with updated backoff (may have changed after an error)
       pollTimer.current = setTimeout(tick, backoffRef.current);
     };
     pollTimer.current = setTimeout(tick, POLL_MS);
   }, [fetchInventory, stopPolling]);
 
-  // ─── focus effect ─────────────────────────────────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      // ─── NEW: AbortController tied to this focus session ──────────────────
       const abortCtrl = new AbortController();
-
       const task = InteractionManager.runAfterInteractions(() => {
         fetchInventory(false, abortCtrl.signal);
         startPolling(abortCtrl);
       });
-
       return () => {
         task.cancel();
         stopPolling();
-        abortCtrl.abort(); // cancel any in-flight fetch on blur
+        abortCtrl.abort();
       };
     }, [fetchInventory, startPolling, stopPolling])
   );
 
-  // ─── pull-to-refresh ──────────────────────────────────────────────────────
+  React.useEffect(() => {
+    if (!selectedItem) return;
+    setEditName(selectedItem.name || '');
+    setEditPrice(String(selectedItem.price || ''));
+    setTrackQuantity(selectedItem.track_quantity || false);
+    setQuantity(String(selectedItem.quantity || 0));
+  }, [selectedItem]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchInventory(false);
   }, [fetchInventory]);
 
-  // ─── delete ───────────────────────────────────────────────────────────────
   const handleDelete = useCallback(async (id) => {
-    // Optimistic update — also patch lastJsonRef so next poll doesn't revert it
     setProducts(prev => {
       const next = prev.filter(p => p.id !== id);
       lastJsonRef.current = JSON.stringify(next);
@@ -199,29 +244,113 @@ export default function InventoryPage() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        lastJsonRef.current = null; // force re-render on next poll
-        fetchInventory(false);
-      }
+      if (!res.ok) { lastJsonRef.current = null; fetchInventory(false); }
     } catch {
       lastJsonRef.current = null;
       fetchInventory(false);
     }
   }, [fetchInventory, getToken]);
 
-  // ─── filtered list (memoized) ─────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
+    if (!selectedItem) return;
+    setSaving(true);
+    try {
+      const token = await getToken();
+      const form  = new FormData();
+      form.append('name', editName);
+      form.append('price', editPrice);
+      form.append('track_quantity', trackQuantity);
+      form.append('quantity', quantity);
+
+      const res  = await fetch(`${BASE_URL}/api/item/update/${selectedItem.id}/`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Update failed'); return; }
+
+      setProducts(prev =>
+        prev.map(item => {
+          if (item.id !== selectedItem.id) return item;
+          const qty = Number(quantity);
+          let quantity_status = null;
+          if (trackQuantity) {
+            if (qty <= 0) quantity_status = 'out';
+            else if (qty <= 5) quantity_status = 'low';
+            else quantity_status = 'in';
+          }
+          return { ...item, name: editName, price: editPrice, quantity: qty, track_quantity: trackQuantity, quantity_status };
+        })
+      );
+      setModalVisible(false);
+    } catch (err) {
+      console.log(err);
+      alert('Network error');
+    } finally {
+      setSaving(false);
+    }
+  }, [selectedItem, editName, editPrice, quantity, trackQuantity, getToken]);
+
+  const unlockQuantityFeature = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res   = await fetch(`${BASE_URL}/api/payment/quantity/create/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) { alert('Failed to create order'); return; }
+
+      const options = {
+        description: 'Inventory Management Unlock',
+        currency: 'INR',
+        key: data.key,
+        amount: data.amount,
+        order_id: data.order_id,
+        name: 'Dukan',
+        theme: { color: '#2F5D50' },
+      };
+
+      RazorpayCheckout.open(options)
+        .then(async (payment) => {
+          const verifyRes = await fetch(`${BASE_URL}/api/payment/quantity/verify/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              order_id: payment.razorpay_order_id,
+              payment_id: payment.razorpay_payment_id,
+              signature: payment.razorpay_signature,
+            }),
+          });
+          if (!verifyRes.ok) { alert('Verification failed'); return; }
+          setSelectedItem(prev => ({ ...prev, shop_has_quantity_feature: true }));
+          setProducts(prev => prev.map(item => ({ ...item, shop_has_quantity_feature: true })));
+          alert('Inventory unlocked 🎉');
+        })
+        .catch(() => alert('Payment cancelled'));
+    } catch (err) {
+      console.log(err);
+      alert('Payment error');
+    }
+  }, [getToken]);
+
+  const closeModal = useCallback(() => setModalVisible(false), []);
+
   const filteredData = useMemo(
-    () => products.filter(item =>
-      item.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    ),
+    () => products.filter(item => item.name?.toLowerCase().includes(searchQuery.toLowerCase())),
     [products, searchQuery]
   );
 
-  const renderItem    = useCallback(({ item }) => (
-    <ProductCard item={item} onDelete={handleDelete} />
+  const renderItem   = useCallback(({ item }) => (
+    <ProductCard
+      item={item}
+      onDelete={handleDelete}
+      onEdit={(i) => { setSelectedItem(i); setModalVisible(true); }}
+    />
   ), [handleDelete]);
 
-  const keyExtractor  = useCallback((item) => item.id.toString(), []);
+  const keyExtractor = useCallback((item) => item.id.toString(), []);
 
   if (loading) return (
     <View style={styles.center}>
@@ -234,6 +363,7 @@ export default function InventoryPage() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
+      {/* ─── Header ─── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Inventory</Text>
@@ -250,6 +380,7 @@ export default function InventoryPage() {
         </TouchableOpacity>
       </View>
 
+      {/* ─── Search ─── */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={17} color="#999" />
@@ -270,6 +401,9 @@ export default function InventoryPage() {
         </View>
       </View>
 
+      <AdBanner />
+
+      {/* ─── Grid ─── */}
       <FlatList
         data={filteredData}
         keyExtractor={keyExtractor}
@@ -291,9 +425,143 @@ export default function InventoryPage() {
         showsVerticalScrollIndicator={false}
       />
 
+      {/* ─── Edit Modal ─── */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
+        {/* Tap outside to close */}
+        <TouchableWithoutFeedback onPress={closeModal}>
+          <View style={styles.modalOverlay}>
+            {/* Stop propagation so tapping inside the sheet doesn't close */}
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.modalSheet}>
+                {selectedItem && (
+                  <>
+                    {/* Drag handle */}
+                    <View style={styles.dragHandle} />
+
+                    {/* Product image + name header */}
+                    <View style={styles.modalHeader}>
+                      <Image
+                        source={{ uri: getImageUrl(selectedItem.image) }}
+                        style={styles.modalThumb}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.modalHeaderText}>
+                        <Text style={styles.modalCategory}>{selectedItem.category || 'GENERAL'}</Text>
+                        <Text style={styles.modalProductName} numberOfLines={2}>{selectedItem.name}</Text>
+                        <Text style={styles.modalCurrentPrice}>
+                          {selectedItem.price ? `₹${Number(selectedItem.price).toLocaleString()}` : 'No Price'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    {/* Edit title */}
+                    <Text style={styles.sectionLabel}>EDIT DETAILS</Text>
+
+                    {/* Name field */}
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Item Name</Text>
+                      <TextInput
+                        value={editName}
+                        onChangeText={setEditName}
+                        placeholder="Item name"
+                        placeholderTextColor="#bbb"
+                        style={styles.modalInput}
+                      />
+                    </View>
+
+                    {/* Price field */}
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Price (₹)</Text>
+                      <TextInput
+                        value={editPrice}
+                        onChangeText={setEditPrice}
+                        placeholder="0"
+                        placeholderTextColor="#bbb"
+                        keyboardType="numeric"
+                        style={styles.modalInput}
+                      />
+                    </View>
+
+                    {/* Quantity feature */}
+                    {selectedItem.shop_has_quantity_feature ? (
+                      <View style={styles.quantitySection}>
+                        <View style={styles.switchRow}>
+                          <View>
+                            <Text style={styles.switchLabel}>Track Quantity</Text>
+                            <Text style={styles.switchSub}>Show stock status to customers</Text>
+                          </View>
+                          <Switch
+                            value={trackQuantity}
+                            onValueChange={setTrackQuantity}
+                            trackColor={{ false: '#e0e0e0', true: '#a8d5c2' }}
+                            thumbColor={trackQuantity ? '#2F5D50' : '#f4f3f4'}
+                          />
+                        </View>
+
+                        {trackQuantity && (
+                          <>
+                            <QuantityStepper value={quantity} onChange={setQuantity} />
+                            {/* Stock status preview */}
+                            <View style={styles.stockPreview}>
+                              {(() => {
+                                const q = parseInt(quantity, 10) || 0;
+                                if (q <= 0) return <View style={[styles.stockPill, styles.stockPillOut]}><Text style={styles.stockPillText}>Will show: Out of Stock</Text></View>;
+                                if (q <= 5)  return <View style={[styles.stockPill, styles.stockPillLow]}><Text style={styles.stockPillText}>Will show: Only {q} left</Text></View>;
+                                return <View style={[styles.stockPill, styles.stockPillIn]}><Text style={styles.stockPillText}>Will show: In Stock ({q})</Text></View>;
+                              })()}
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={styles.lockBox}>
+                        <View style={styles.lockIconWrap}>
+                          <Ionicons name="lock-closed" size={20} color="#D97706" />
+                        </View>
+                        <View style={styles.lockTextCol}>
+                          <Text style={styles.lockTitle}>Inventory Tracking</Text>
+                          <Text style={styles.lockSub}>Unlock quantity management for ₹100 lifetime access</Text>
+                        </View>
+                        <TouchableOpacity style={styles.unlockBtn} onPress={unlockQuantityFeature}>
+                          <Text style={styles.unlockText}>Unlock</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* Save button */}
+                    <TouchableOpacity
+                      style={[styles.saveBtn, saving && styles.saveBtnLoading]}
+                      onPress={handleSave}
+                      disabled={saving}
+                      activeOpacity={0.85}
+                    >
+                      {saving
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <>
+                            <Ionicons name="checkmark" size={18} color="#fff" />
+                            <Text style={styles.saveText}>Save Changes</Text>
+                          </>
+                      }
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* ─── Footer ─── */}
       <View style={styles.footer}>
         <NavBtn icon="home-outline"   label="Home"    onPress={() => router.push('/merchant/home')} />
-        <NavBtn icon="grid"           label="Items"   onPress={() => router.push('/merchant/items')} active />
+        <NavBtn icon="grid"           label="Items"   active />
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/merchant/create-post')} activeOpacity={0.85}>
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
@@ -302,8 +570,6 @@ export default function InventoryPage() {
     </SafeAreaView>
   );
 }
-
-// styles unchanged
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F5F4' },
@@ -315,10 +581,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 15, backgroundColor: '#fff',
     borderBottomWidth: 0.5, borderBottomColor: '#eee',
   },
-  headerTitle:     { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
-  headerSub:       { fontSize: 12, color: '#aaa', marginTop: 1 },
-  refreshBtn:      { width: 38, height: 38, backgroundColor: '#E8EFEA', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  refreshBtnActive:{ backgroundColor: '#d8eadb' },
+  headerTitle:      { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
+  headerSub:        { fontSize: 12, color: '#aaa', marginTop: 1 },
+  refreshBtn:       { width: 38, height: 38, backgroundColor: '#E8EFEA', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  refreshBtnActive: { backgroundColor: '#d8eadb' },
 
   /* search */
   searchSection: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
@@ -348,10 +614,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.92)',
     padding: 6, borderRadius: 10,
   },
+  outOfStockBadge: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(220,38,38,0.82)', paddingVertical: 4, alignItems: 'center',
+  },
+  outOfStockText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
   cardBody:  { padding: 10 },
   cardCat:   { fontSize: 9, fontWeight: '800', color: '#2F5D50', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 3 },
   cardName:  { fontSize: 13, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 },
   cardPrice: { fontSize: 14, fontWeight: '800', color: '#2F5D50' },
+
+  /* stock */
+  stockWrap: { marginTop: 4 },
+  stockIn:   { color: '#1B8A3D', fontWeight: '700', fontSize: 10 },
+  stockLow:  { color: '#D97706', fontWeight: '700', fontSize: 10 },
+  stockOut:  { color: '#DC2626', fontWeight: '700', fontSize: 10 },
 
   /* empty */
   emptyWrap:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 8 },
@@ -362,17 +639,173 @@ const styles = StyleSheet.create({
   /* footer */
   footer: {
     position: 'absolute', bottom: 0, width: '100%',
-    backgroundColor: '#fff', flexDirection: 'row',
-    justifyContent: 'space-around', alignItems: 'center',
-    paddingVertical: 10,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    borderTopWidth: 0.5, borderColor: '#eee', elevation: 12,
+    backgroundColor: '#0F2118',
+    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
+    paddingVertical: 10, paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    borderTopWidth: 0.5, borderColor: 'rgba(255,255,255,0.08)',
+    elevation: 12,
   },
-  navTab:   { alignItems: 'center', gap: 2 },
-  navLabel: { fontSize: 10, color: '#bbb', fontWeight: '500' },
+  navTab:         { alignItems: 'center', gap: 2, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16 },
+  navTabActive:   { backgroundColor: 'rgba(255,255,255,0.08)' },
+  navLabel:       { fontSize: 10, color: '#8E9A96', fontWeight: '600' },
+  navLabelActive: { fontSize: 10, color: '#00E676', fontWeight: '700' },
   addBtn: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#2F5D50', justifyContent: 'center', alignItems: 'center',
-    elevation: 6, shadowColor: '#2F5D50', shadowOpacity: 0.4, shadowRadius: 8, marginBottom: 8,
+    backgroundColor: '#1b4d3e',
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#1b4d3e', shadowOpacity: 0.4, shadowRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1, borderColor: '#00E676',
   },
+
+  /* ─── Modal ─── */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+  },
+  dragHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#e0e0e0',
+    alignSelf: 'center', marginBottom: 20,
+  },
+
+  /* modal header (image + text side by side) */
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 14,
+  },
+  modalThumb: {
+    width: 72, height: 72, borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+  },
+  modalHeaderText: { flex: 1 },
+  modalCategory: {
+    fontSize: 9, fontWeight: '800', color: '#2F5D50',
+    letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4,
+  },
+  modalProductName: {
+    fontSize: 16, fontWeight: '800', color: '#111', lineHeight: 20, marginBottom: 4,
+  },
+  modalCurrentPrice: {
+    fontSize: 14, fontWeight: '700', color: '#888',
+  },
+
+  divider: {
+    height: 1, backgroundColor: '#f0f0f0', marginBottom: 20,
+  },
+
+  sectionLabel: {
+    fontSize: 10, fontWeight: '800', color: '#aaa',
+    letterSpacing: 1.2, marginBottom: 14,
+  },
+
+  /* inputs */
+  inputGroup:  { marginBottom: 14 },
+  inputLabel:  { fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 6 },
+  modalInput: {
+    backgroundColor: '#F7F8FA',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 13 : 10,
+    fontSize: 15,
+    color: '#111',
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+
+  /* quantity section */
+  quantitySection: { marginBottom: 4 },
+  switchRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 16,
+  },
+  switchLabel: { fontSize: 15, fontWeight: '700', color: '#111' },
+  switchSub:   { fontSize: 11, color: '#aaa', marginTop: 2 },
+
+  /* stepper */
+  stepperRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F7F8FA',
+    borderRadius: 14, borderWidth: 1, borderColor: '#eee',
+    paddingHorizontal: 16, paddingVertical: 10,
+    marginBottom: 12,
+  },
+  stepperLabel:   { fontSize: 14, fontWeight: '700', color: '#333' },
+  stepperControls:{ flexDirection: 'row', alignItems: 'center', gap: 4 },
+  stepperBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#EAF3EF',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  stepperBtnDisabled: { backgroundColor: '#f4f4f4' },
+  stepperInput: {
+    width: 52, height: 36,
+    backgroundColor: '#fff',
+    borderRadius: 10, borderWidth: 1, borderColor: '#e0e0e0',
+    fontSize: 16, fontWeight: '700', color: '#111',
+    paddingVertical: 0,
+  },
+
+  /* stock preview pill */
+  stockPreview: { marginBottom: 16 },
+  stockPill: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'flex-start' },
+  stockPillIn:  { backgroundColor: '#ECFDF5' },
+  stockPillLow: { backgroundColor: '#FFFBEB' },
+  stockPillOut: { backgroundColor: '#FEF2F2' },
+  stockPillText:{ fontSize: 12, fontWeight: '700', color: '#444' },
+
+  /* lock box */
+  lockBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  lockIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center', alignItems: 'center',
+    flexShrink: 0,
+  },
+  lockTextCol: { flex: 1 },
+  lockTitle:   { fontSize: 13, fontWeight: '800', color: '#92400E', marginBottom: 2 },
+  lockSub:     { fontSize: 11, color: '#B45309', lineHeight: 15 },
+  unlockBtn: {
+    backgroundColor: '#D97706',
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 10, flexShrink: 0,
+  },
+  unlockText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+
+  /* save */
+  saveBtn: {
+    backgroundColor: '#2F5D50',
+    paddingVertical: 15,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  saveBtnLoading: { opacity: 0.7 },
+  saveText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

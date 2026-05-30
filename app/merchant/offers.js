@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const BASE_URL = "https://api.mydukan.online";
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 
 export default function Offers() {

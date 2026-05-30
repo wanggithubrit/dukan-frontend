@@ -10,7 +10,7 @@ import {
   View
 } from 'react-native';
 
-const BASE_URL = "https://api.mydukan.online";
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 export default function BannerUpload() {
   const [image, setImage] = useState(null);
