@@ -4,12 +4,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useRef, useState } from 'react';
+import { Image } from 'expo-image';
 import {
   ActivityIndicator,
   Animated,
   AppState,
   FlatList,
-  Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -18,19 +19,23 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AdBanner from '../components/AdBanner';
 
-const BASE_URL      = 'https://api.mydukan.online';
-const POLL_INTERVAL = 45_000; // 45 s — favorites change rarely; no need to hammer the API
+
+const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
+const POLL_INTERVAL = 90_000; // 90 s — favorites change rarely; no need to hammer the API
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
   bg:        '#F4F7F6',
   card:      '#FFFFFF',
+  surface:   '#FFFFFF',   // ← add
   border:    '#E4EDE9',
   primary:   '#2F5D50',
   primaryLt: '#E8F3F0',
   textHi:    '#0F1F1B',
   textMid:   '#6B8A82',
   textLo:    '#A0BAB4',
+  textMuted: '#9CAAA5',   // ← add
+  white:     '#FFFFFF',   // ← add
   red:       '#FF4B4B',
   redLt:     '#FFF0F0',
 };
@@ -45,6 +50,16 @@ const getImageUrl = (img) => {
   if (img.startsWith('http')) return img;
   if (img.startsWith('/')) return `${BASE_URL}${img}`;
   return `${BASE_URL}/${img}`;
+};
+
+const formatDist = (d) => {
+  if (d == null) return 'Nearby';
+  const distNum = +d;
+  if (distNum < 1.0) {
+    const meters = Math.round(distNum * 1000);
+    return `Nearby (${meters}m)`;
+  }
+  return `Approx. ${distNum.toFixed(1)} km`;
 };
 
 // ── ShopCard ──────────────────────────────────────────────────────────────────
@@ -80,7 +95,7 @@ function ShopCard({ item, onPress, onRemove }) {
           <View style={s.locationRow}>
             <Ionicons name="location-outline" size={12} color={C.primary} />
             <Text style={s.locationText}>
-              {item.distance != null ? `${item.distance} km` : 'Nearby'}
+              {formatDist(item.distance)}
             </Text>
           </View>
         </View>
@@ -125,26 +140,33 @@ export default function Favorites() {
   const appStateSub  = useRef(null);
 
   // ── Core fetch ─────────────────────────────────────────────────────────────
-  const fetchFavorites = useCallback(async (showSpinner = false) => {
-    try {
-      if (showSpinner) setLoading(true);
+const fetchFavorites = useCallback(async (showSpinner = false) => {
+  try {
+    if (showSpinner) setLoading(true);
 
-      const [user_id, lat, lon] = await AsyncStorage.multiGet(['user_id', 'lat', 'lon'])
-        .then((pairs) => pairs.map(([, v]) => v));
+    const [[, t], [, at], [, lat], [, lon]] =
+     await AsyncStorage.multiGet(['token', 'access_token', 'lat', 'lon']);
+    const token = t || at;
 
-      const res = await fetch(
-        `${BASE_URL}/api/favorites/${user_id}/?lat=${lat}&lon=${lon}`,
-      );
-      if (!res.ok) return;
+    const res = await fetch(
+      `${BASE_URL}/api/favorites/?lat=${lat}&lon=${lon}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-      const data = await res.json();
-      setShops(Array.isArray(data) ? data : []);
-    } catch {
-      // silent — don't crash the UI on transient network errors
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    if (!res.ok) throw new Error();
+
+    const data = await res.json();
+    setShops(Array.isArray(data) ? data : []);
+  } catch (e) {
+    console.log("FAVORITES ERROR:", e);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   // ── Start / stop the background poll ──────────────────────────────────────
   const startPolling = useCallback(() => {
@@ -187,24 +209,30 @@ export default function Favorites() {
   );
 
   // ── Remove favourite (optimistic) ─────────────────────────────────────────
-  const removeFavorite = useCallback(async (shop_id) => {
-    // Optimistic UI update
-    setShops((prev) => prev.filter((sh) => sh.id !== shop_id));
-    try {
-      const [[, token], [, access]] = await AsyncStorage.multiGet(['token', 'access_token']);
-      await fetch(`${BASE_URL}/api/favorite/toggle/`, {
-        method:  'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization:  `Bearer ${token || access}`,
-        },
-        body: JSON.stringify({ shop_id }),
-      });
-    } catch {
-      // Rollback: re-fetch on failure so local state stays in sync
-      fetchFavorites();
-    }
-  }, [fetchFavorites]);
+const removeFavorite = useCallback(async (shop_id) => {
+  const previous = shops;
+
+  setShops((prev) => prev.filter((sh) => sh.id !== shop_id));
+
+  try {
+    const [[, t], [, at]] = await AsyncStorage.multiGet(['token', 'access_token']);
+    const token = t || at;
+
+    const res = await fetch(`${BASE_URL}/api/favorite/toggle/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ shop_id }),
+    });
+
+    if (!res.ok) throw new Error();
+
+  } catch {
+    setShops(previous); // rollback
+  }
+}, [shops]);
 
   // ── Render item (stable reference) ────────────────────────────────────────
   const renderItem = useCallback(({ item }) => (
@@ -214,6 +242,19 @@ export default function Favorites() {
       onRemove={() => removeFavorite(item.id)}
     />
   ), [router, removeFavorite]);
+
+  const handleBack = useCallback(async () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      const role = await AsyncStorage.getItem('role');
+      if (role === 'merchant') {
+        router.replace('/merchant/home');
+      } else {
+        router.replace('/shop/home');
+      }
+    }
+  }, [router]);
 
   const keyExtractor = useCallback((item) => item.id?.toString(), []);
 
@@ -236,7 +277,7 @@ export default function Favorites() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+        <TouchableOpacity onPress={handleBack} style={s.backBtn}>
           <Ionicons name="arrow-back" size={20} color={C.textHi} />
         </TouchableOpacity>
 
@@ -252,8 +293,7 @@ export default function Favorites() {
         {/* Spacer to balance back button */}
         <View style={{ width: 40 }} />
       </View>
-
-      <AdBanner />
+      <AdBanner/>
 
       {/* LIST */}
       <FlatList
@@ -265,26 +305,33 @@ export default function Favorites() {
         ListEmptyComponent={<EmptyState />}
       />
 
-      {/* FOOTER NAV */}
-      <View style={s.bottomNav}>
-        <TouchableOpacity style={s.tab} onPress={() => router.push('/shop/home')}>
-          <View style={[s.iconWrapper, pathname === '/shop/home' && s.activeTab]}>
-            <Ionicons name="home" size={24} color={pathname === '/shop/home' ? '#fff' : '#888'} />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.tab} onPress={() => router.push('/favorites')}>
-          <View style={[s.iconWrapper, pathname === '/favorites' && s.activeTab]}>
-            <Ionicons name="heart-outline" size={24} color={pathname === '/favorites' ? '#fff' : '#888'} />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.tab} onPress={() => router.push('/profile')}>
-          <View style={[s.iconWrapper, pathname === '/profile' && s.activeTab]}>
-            <Ionicons name="person-outline" size={24} color={pathname === '/profile' ? '#fff' : '#888'} />
-          </View>
-        </TouchableOpacity>
-      </View>
+      {/* ── BOTTOM NAV (matches Home page) ─────────────────────────────── */}
+<View style={s.bottomNav}>
+  {[
+    { route: '/shop/home', icon: 'home',   iconOutline: 'home-outline',   label: 'Home'      },
+    { route: '/favorites', icon: 'heart',  iconOutline: 'heart-outline',  label: 'Saved'     },
+    { route: '/profile',   icon: 'person', iconOutline: 'person-outline', label: 'Profile'   },
+  ].map(tab => {
+    const active = pathname === tab.route;
+    return (
+      <TouchableOpacity
+        key={tab.route}
+        style={s.navTab}
+        onPress={() => router.push(tab.route)}
+        activeOpacity={0.8}
+      >
+        <View style={[s.navIconWrap, active && s.navIconWrapActive]}>
+          <Ionicons
+            name={active ? tab.icon : tab.iconOutline}
+            size={20}
+            color={active ? C.white : C.textMuted}
+          />
+        </View>
+        <Text style={[s.navLabel, active && s.navLabelActive]}>{tab.label}</Text>
+      </TouchableOpacity>
+    );
+  })}
+</View>
     </SafeAreaView>
   );
 }
@@ -363,15 +410,53 @@ const s = StyleSheet.create({
     textAlign: 'center', paddingHorizontal: 40,
   },
 
-  // FOOTER NAV
-  bottomNav: {
-    position: 'absolute', bottom: 10, alignSelf: 'center',
-    flexDirection: 'row', width: '90%', backgroundColor: '#fff',
-    borderRadius: 30, paddingVertical: 12, justifyContent: 'space-around',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 }, elevation: 10,
-  },
-  tab:        { alignItems: 'center' },
-  iconWrapper:{ padding: 10, borderRadius: 20 },
-  activeTab:  { backgroundColor: '#2F5D50', transform: [{ scale: 1.1 }] },
+   // ── Bottom nav ─────────────────────────────────────────────────────────────
+    bottomNav: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      backgroundColor: C.surface,
+      borderTopWidth: 0.5,
+      borderTopColor: C.border,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      // shadow upward
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: -4 },
+      elevation: 12,
+     
+    },
+    navTab: {
+      alignItems: 'center',
+      gap: 3,
+      flex: 1,
+      marginBottom: 7,
+    },
+    navIconWrap: {
+      width: 42,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: -2,
+    },
+    navIconWrapActive: {
+      backgroundColor: C.primary,
+    },
+    navLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: C.textMuted,
+    },
+    navLabelActive: {
+      color: C.primary,
+    },
+ 
 });
