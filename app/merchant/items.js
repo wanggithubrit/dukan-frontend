@@ -8,6 +8,7 @@ import { Image } from 'expo-image';
 import { showRewardedAd } from '../../utils/rewardedAd';
 import {
   ActivityIndicator, Alert, FlatList, InteractionManager,
+  Linking,
   Modal,
   Platform, RefreshControl, StyleSheet,
   Switch,
@@ -319,7 +320,22 @@ export default function InventoryPage() {
   }, [fetchInventory, fetchCreditStatus]);
 
   const handleAddPress = useCallback(() => {
-    if (!creditStatus.is_pro && products.length >= creditStatus.product_limit) {
+    if (creditStatus.is_pro && products.length >= 120) {
+      Alert.alert(
+        'Upload Limit Reached',
+        'You have reached the maximum limit of 120 items on the Pro plan. To increase your limit further, please contact support or send us feedback.',
+        [
+          {
+            text: '📧 Email Support',
+            onPress: () => Linking.openURL('mailto:dukanpersonal316@gmail.com?subject=Request More Product Slots (Pro)')
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
+    } else if (!creditStatus.is_pro && products.length >= creditStatus.product_limit) {
       setLimitModalVisible(true);
     } else {
       router.push('/merchant/create-post');
