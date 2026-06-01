@@ -84,7 +84,7 @@ const QRModal = ({ visible, onClose, shop, onDownload, viewRef }) => (
             <View style={styles.qrBox}>
               <QRCode value={`https://dukan.app/shop/${shop?.id}`} size={180} color="#1a1a1a" backgroundColor="#fff" />
             </View>
-            <Text style={styles.qrFooter}>Powered by Dukan · Shop Smart</Text>
+            <Text style={styles.qrFooter}>Powered by MyDukan · Shop Smart</Text>
           </View>
         </ViewShot>
         <View style={styles.qrActions}>
@@ -118,7 +118,7 @@ export const startPayment = async () => {
       key: data.key,
       amount: data.amount,
       order_id: data.order_id,
-      name: 'Dukan App',
+      name: 'MyDukan',
       prefill: { contact: '9999999999' },
       theme: { color: '#2F5D50' },
       method: { upi: true, card: false, netbanking: false, wallet: false, emi: false, paylater: false },
@@ -207,7 +207,7 @@ export default function MerchantProfile() {
   const shareReferral = async () => {
     try {
       await Share.share({
-        message: `Join Dukan as a merchant using my code: ${data.referral_code}\n\nBoost your sales today! 🚀`,
+        message: `Join MyDukan as a merchant using my code: ${data.referral_code}\n\nBoost your sales today! 🚀`,
       });
     } catch (error) { console.log(error.message); }
   };
@@ -220,13 +220,13 @@ export default function MerchantProfile() {
     });
     const data = await res.json();
     const options = {
-      description: 'Dukan Pro Plan',
+      description: 'MyDukan Pro Plan',
       currency: 'INR',
       key: data.key,
       amount: data.amount,
       order_id: data.order_id,
-      name: 'Dukan',
-      prefill: { email: 'test@dukan.com', contact: '9999999999' },
+      name: 'MyDukan',
+      prefill: { email: 'test@mydukan.online', contact: '9999999999' },
       theme: { color: '#2F5D50' },
     };
     RazorpayCheckout.open(options)
@@ -281,14 +281,15 @@ export default function MerchantProfile() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Upgrade to PRO</Text>
             <Text style={styles.modalSub}>Take your shop to the next level</Text>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Showcase up to 100 products in your shop</Text></View>
+            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Showcase up to 120 products in your shop</Text></View>
+            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Upload up to 3 images per product</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Get a premium verified badge on your shop</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Appear before free shops when distance is the same</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Boost visibility with a featured banner</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Highlight your shop with 5 cover images</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Engage customers with instant notifications</Text></View>
             <TouchableOpacity style={styles.modalBtn} onPress={handlePayment} disabled={ui.upgrading}>
-              {ui.upgrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Pay ₹40 / month</Text>}
+              {ui.upgrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Pay ₹59 / month</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setUIKey('showUpgrade', false)} style={{ marginTop: 15 }}>
               <Text style={styles.cancelText}>Maybe Later</Text>
@@ -392,6 +393,7 @@ export default function MerchantProfile() {
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Support</Text></View>
         <View style={styles.settingsCard}>
           <SupportRow icon="mail-outline" title="Help Desk" subtitle="Get assistance via email" onPress={openEmail} />
+          <SupportRow icon="information-circle-outline" title="About Us" subtitle="Learn more about MyDukan" onPress={() => router.push('/about')} />
         </View>
 
       </ScrollView>

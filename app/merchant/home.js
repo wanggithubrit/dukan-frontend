@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -553,6 +553,8 @@ let _lastActiveTab = 'dashboard';
 // ─── main ─────────────────────────────────────────────────────────────────────
 export default function MerchantHome() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const triggerAction = params?.triggerAction;
 
   // Tab State
   const [activeTab, setActiveTabInternal] = useState(_lastActiveTab); // 'dashboard' | 'marketplace'
@@ -584,6 +586,97 @@ export default function MerchantHome() {
   const [featuredBanners, setFeaturedBanners] = useState([]);
   const [activeBanner, setActiveBanner] = useState(0);
 
+  // CREDIT & REMINDER SYSTEM STATES
+  const [creditData, setCreditData] = useState({
+    available_credits: 0.0,
+    total_earned: 0.0,
+    total_spent: 0.0,
+    today_earned: 0.0,
+    tier: 'Bronze Merchant',
+    shop_health: 0,
+    product_limit: 20,
+    is_pro: false,
+  });
+  const [adLoaded, setAdLoaded] = useState(false);
+  const [rewardedAdInstance, setRewardedAdInstance] = useState(null);
+
+  const fetchCreditStatus = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch(`${BASE_URL}/api/credits/status/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCreditData(data);
+      }
+    } catch (err) {
+      console.debug('Credit status fetch error:', err);
+    }
+  }, []);
+
+  const watchAd = useCallback(() => {
+    if (adLoaded && rewardedAdInstance) {
+      rewardedAdInstance.show();
+      setAdLoaded(false);
+      rewardedAdInstance.load();
+    } else {
+      Alert.alert('Ad Loading', 'The rewarded ad is loading. Please try again in a few seconds.');
+    }
+  }, [adLoaded, rewardedAdInstance]);
+
+  useEffect(() => {
+    let adInstance;
+    try {
+      const { RewardedAd, TestIds, RewardedAdEventType } = require('react-native-google-mobile-ads');
+      const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544/5224354917';
+      adInstance = RewardedAd.createForAdRequest(adUnitId, {
+        requestNonPersonalizedAdsOnly: true,
+      });
+
+      const unsubLoaded = adInstance.addAdEventListener(RewardedAdEventType.LOADED, () => {
+        setAdLoaded(true);
+      });
+
+      const unsubEarned = adInstance.addAdEventListener(
+        RewardedAdEventType.EARNED_REWARD,
+        async () => {
+          try {
+            const token = await getToken();
+            const res = await fetch(`${BASE_URL}/api/credits/ad-complete/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({ ad_id: 'dashboard_rewarded_watch_' + Date.now() })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              Alert.alert('Congratulations! 🎉', 'You watched the ad and earned 1 Credit.');
+              fetchCreditStatus();
+            } else {
+              Alert.alert('Error', data.error || 'Failed to claim reward');
+            }
+          } catch (err) {
+            console.error('Rewarded ad reward claim error:', err);
+          }
+        }
+      );
+
+      adInstance.load();
+      setRewardedAdInstance(adInstance);
+
+      return () => {
+        unsubLoaded();
+        unsubEarned();
+      };
+    } catch (e) {
+      console.debug('Rewarded ads not supported or failed to load:', e.message);
+    }
+  }, [fetchCreditStatus]);
+
   const coordsRef = useRef(null);
   const searchInputRef = useRef(null);
   const bannerRef = useRef(null);
@@ -611,6 +704,11 @@ export default function MerchantHome() {
         fetch(`${BASE_URL}/api/merchant/dashboard/${userId}/`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${BASE_URL}/api/merchant/banners/`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
+      if (dashRes.status === 401 || dashRes.status === 404 || dashRes.status === 500) {
+        await AsyncStorage.multiRemove(['token', 'user_id', 'user_role']);
+        router.replace('/login');
+        return;
+      }
       const [data, bData] = await Promise.all([dashRes.json(), bRes.json()]);
       if (data?.shop) {
         const postsData = data.media || data.images || [];
@@ -621,6 +719,8 @@ export default function MerchantHome() {
           setBanners(Array.isArray(bData) ? bData : []);
         });
       }
+      // Also fetch merchant credits status
+      await fetchCreditStatus();
     } catch (_err) {
       if (!silent) console.log('❌ fetchData:', _err);
     } finally {
@@ -628,7 +728,7 @@ export default function MerchantHome() {
       if (!silent) { setLoading(false); setRefreshing(false); }
       else { setLoading(false); }
     }
-  }, [router]);
+  }, [router, fetchCreditStatus]);
 
   // Fetch Nearby Shops for Marketplace
   const fetchShops = useCallback(async (latArg, lonArg) => {
@@ -775,12 +875,40 @@ export default function MerchantHome() {
 
   useFocusEffect(
     useCallback(() => {
-      const task = InteractionManager.runAfterInteractions(() => {
-        fetchData(false);
+      const task = InteractionManager.runAfterInteractions(async () => {
+        await fetchData(false);
         startPolling();
+
+        if (triggerAction) {
+          try {
+            const token = await getToken();
+            const actionTarget = triggerAction === 'open' ? 'open' : 'close';
+            
+            const res = await fetch(`${BASE_URL}/api/credits/report-action/`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ action: actionTarget }),
+            });
+            const actionData = await res.json();
+            
+            if (res.ok) {
+              setShop(prev => prev ? ({ ...prev, is_open: actionTarget === 'open' }) : null);
+              Alert.alert(
+                actionTarget === 'open' ? 'Shop Opened! ✅' : 'Shop Closed! 🌙',
+                actionTarget === 'open' ? 'Status updated. +0.5 Credits rewarded!' : 'Status updated.'
+              );
+            } else {
+              Alert.alert('Error', actionData.error || 'Failed to update status');
+            }
+          } catch (e) {
+            console.error('Quick action handling failed:', e);
+          }
+          // Clear parameters so it doesn't trigger on reload
+          router.replace('/merchant/home');
+        }
       });
       return () => { task.cancel(); stopPolling(); };
-    }, [fetchData, startPolling, stopPolling])
+    }, [fetchData, startPolling, stopPolling, triggerAction, router])
   );
 
   const onRefresh = useCallback(async () => {
@@ -930,7 +1058,6 @@ export default function MerchantHome() {
         {/* ── HEADER ── */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.welcomeText}>Good morning</Text>
             <Text style={styles.headerTitle}>Merchant Portal</Text>
           </View>
           <Image source={require('../../assets/images/logo_round.png')} style={styles.headerLogo} />
@@ -995,6 +1122,69 @@ export default function MerchantHome() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* ── CREDITS & HEALTH DASHBOARD ── */}
+            <View style={styles.creditsSection}>
+              {/* Credits Card */}
+              <View style={styles.creditsCard}>
+                <View style={styles.creditsHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="wallet-outline" size={16} color="#2F5D50" />
+                    <Text style={styles.creditsTitle}>My Credits</Text>
+                  </View>
+                  <View style={styles.tierBadge}>
+                    <Text style={styles.tierBadgeText}>{creditData.tier}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.creditsBody}>
+                  <View style={styles.creditItem}>
+                    <Text style={styles.creditVal}>{creditData.available_credits}</Text>
+                    <Text style={styles.creditLbl}>Available</Text>
+                  </View>
+                  <View style={styles.creditItem}>
+                    <Text style={styles.creditVal}>{creditData.total_earned}</Text>
+                    <Text style={styles.creditLbl}>Earned</Text>
+                  </View>
+                  <View style={styles.creditItem}>
+                    <Text style={styles.creditVal}>{creditData.today_earned}</Text>
+                    <Text style={styles.creditLbl}>Today</Text>
+                  </View>
+                </View>
+
+                <View style={styles.adActionRow}>
+                  <TouchableOpacity
+                    style={[styles.adBtn, !adLoaded && styles.adBtnDisabled]}
+                    onPress={watchAd}
+                    disabled={!adLoaded}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="play-circle-outline" size={14} color="#fff" />
+                    <Text style={styles.adBtnText}>{adLoaded ? 'Watch Ad (+1 Cr)' : 'Loading Ad...'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Shop Health Score Card */}
+              <View style={styles.healthCard}>
+                <View style={styles.healthHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="heart-half-outline" size={16} color="#E11D48" />
+                    <Text style={styles.healthTitle}>Shop Health</Text>
+                  </View>
+                  <Text style={styles.healthScoreVal}>{creditData.shop_health}/100</Text>
+                </View>
+                
+                {/* Progress Bar */}
+                <View style={styles.healthProgressBg}>
+                  <View style={[styles.healthProgressFill, { width: `${creditData.shop_health}%` }]} />
+                </View>
+                
+                <Text style={styles.healthHint}>
+                  {creditData.shop_health >= 80 ? '🌟 Excellent health score!' : '📈 Set hours & upload items to boost!'}
+                </Text>
+              </View>
+            </View>
 
             {/* ── STATS ROW ── */}
             <View style={styles.statsRow}>
@@ -1310,7 +1500,7 @@ export default function MerchantHome() {
                           />
                           <View style={{ gap: 4 }}>
                             <Text style={styles.bannerEyebrowMarket}>
-                              {b.small_text || 'DUKAN APP'}
+                              {b.small_text || 'MyDukan'}
                             </Text>
                             <Text style={styles.bannerTitleMarket}>
                               {b.title || 'Save your time'}
@@ -2437,5 +2627,126 @@ const styles = StyleSheet.create({
   bannerDotInactiveMarket: {
     width: 5,
     backgroundColor: C.borderMid,
+  },
+
+  // ── CREDIT & HEALTH DASHBOARD
+  creditsSection: {
+    paddingHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 6,
+    gap: 12,
+  },
+  creditsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E0E7E5',
+    padding: 16,
+  },
+  creditsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  creditsTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A332D',
+  },
+  tierBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  tierBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#2E7D32',
+    textTransform: 'uppercase',
+  },
+  creditsBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  creditItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  creditVal: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#2F5D50',
+  },
+  creditLbl: {
+    fontSize: 10,
+    color: '#7B8884',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  adActionRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#F0F4F2',
+    paddingTop: 10,
+  },
+  adBtn: {
+    backgroundColor: '#2F5D50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  adBtnDisabled: {
+    backgroundColor: '#7B8884',
+    opacity: 0.7,
+  },
+  adBtnText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  healthCard: {
+    backgroundColor: '#FFF1F2',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+    padding: 16,
+  },
+  healthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  healthTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#9F1239',
+  },
+  healthScoreVal: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#E11D48',
+  },
+  healthProgressBg: {
+    height: 6,
+    backgroundColor: '#FFE4E6',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  healthProgressFill: {
+    height: '100%',
+    backgroundColor: '#E11D48',
+    borderRadius: 3,
+  },
+  healthHint: {
+    fontSize: 10.5,
+    color: '#9F1239',
+    fontWeight: '600',
   },
 });

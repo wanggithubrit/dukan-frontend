@@ -88,6 +88,7 @@ export default function Profile() {
   const [feedback,     setFeedback]     = useState('');
   const [sending,      setSending]      = useState(false);
 
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -102,6 +103,11 @@ export default function Profile() {
         AsyncStorage.getItem('avatar'),
       ]);
       const res  = await fetch(`${BASE_URL}/api/user/${user_id}/`);
+      if (res.status === 401 || res.status === 404 || res.status === 500) {
+        await AsyncStorage.multiRemove(['token', 'user_id', 'user_role']);
+        router.replace('/login');
+        return;
+      }
       if (!res.ok) return;
       const data = await res.json();
       setUser({ ...data, avatar: savedAvatar || data.avatar });
@@ -241,6 +247,8 @@ export default function Profile() {
           </View>
         </View>
 
+
+
         {/* ACCOUNT MENU */}
         <View style={s.section}>
           <Text style={s.sectionLabel}>ACCOUNT</Text>
@@ -252,6 +260,15 @@ export default function Profile() {
               label="Saved Shops"
               sublabel="Your favourite stores"
               onPress={() => router.push('/favorites')}
+            />
+            <View style={s.divider} />
+            <MenuRow
+              icon="information-circle-outline"
+              iconColor="#2f5d50ff"
+              iconBg="rgba(47,93,80,0.15)"
+              label="About Us"
+              sublabel="Learn more about MyDukan"
+              onPress={() => router.push('/about')}
             />
             <View style={s.divider} />
             <MenuRow
@@ -560,5 +577,4 @@ const s = StyleSheet.create({
    navLabelActive: {
      color: C.primary,
    },
- 
 });

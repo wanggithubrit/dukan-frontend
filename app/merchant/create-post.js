@@ -255,8 +255,10 @@ export default function CreatePost() {
 
   const [mode,    setModeState] = useState('cover');
   const [image,   setImage]     = useState(null);
+  const [image2,  setImage2]    = useState(null);
+  const [image3,  setImage3]    = useState(null);
   const [loading, setLoading]   = useState(false);
-  const [planData, setPlanData] = useState({ plan: null, stats: null });
+  const [planData, setPlanData] = useState({ plan: null, stats: null, credits: null });
 
   const [form, dispatch] = useReducer(formReducer, initialForm);
 
@@ -300,35 +302,48 @@ export default function CreatePost() {
     animateInRef.current();
   }, []);
 
-const fetchPlan = useCallback(async () => {
-  try {
-    const user_id = await AsyncStorage.getItem('user_id');
+  const fetchPlan = useCallback(async () => {
+    try {
+      const user_id = await AsyncStorage.getItem('user_id');
+      const token = await AsyncStorage.getItem('token') || await AsyncStorage.getItem('access_token');
 
-    if (!user_id) return;
+      if (!user_id) return;
 
-    const res = await fetch(
-      `${BASE_URL}/api/merchant/dashboard/${user_id}/`
-    );
+      const [dashRes, creditsRes] = await Promise.all([
+        fetch(`${BASE_URL}/api/merchant/dashboard/${user_id}/`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
+        fetch(`${BASE_URL}/api/credits/status/`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+      ]);
 
-    const data = await res.json();
+      const dashData = await dashRes.json();
+      const creditsData = await creditsRes.json();
 
-    if (isMounted.current) {
-      setPlanData({
-        plan: data.plan,
-        stats: data.stats,
-      });
+      if (isMounted.current) {
+        setPlanData({
+          plan: dashData.plan,
+          stats: dashData.stats,
+          credits: creditsData,
+        });
+      }
+    } catch (e) {
+      console.log('FETCH PLAN ERROR:', e);
     }
-  } catch (e) {
-    console.log('FETCH PLAN ERROR:', e);
-  }
-}, []);
+  }, []);
   useEffect(() => { fetchPlan(); }, [fetchPlan]);
 
-  const { plan, stats } = planData;
+  const { plan, stats, credits } = planData;
   const activeMode         = useMemo(() => MODES.find(m => m.key === mode), [mode]);
   const showPhotoStep      = !activeMode.hidePhoto;
-  const isItemLimitReached = useMemo(() => plan?.type === 'free' && (stats?.items ?? 0) >= 15, [plan, stats]);
-  const credits            = useMemo(() => plan?.credits ?? 0, [plan]);
+  const isItemLimitReached = useMemo(() => {
+    if (credits?.is_pro) return false;
+    const limit = credits?.product_limit ?? 20;
+    const currentCount = stats?.items ?? 0;
+    return currentCount >= limit;
+  }, [credits, stats]);
+  const creditsRemaining   = useMemo(() => credits?.available_credits ?? 0, [credits]);
 
   const checks = useMemo(() => {
     if (mode === 'cover') return [
@@ -355,8 +370,7 @@ const fetchPlan = useCallback(async () => {
     totalChecks: checks.length,
   }), [checks]);
 
-  // ── Image picker ──
-  const pickImage = useCallback(() => {
+  const pickImageIndexed = useCallback((setImageFn) => {
     Alert.alert('Add Photo', 'Where do you want to pick the image from?', [
       {
         text: '📷  Camera',
@@ -367,7 +381,7 @@ const fetchPlan = useCallback(async () => {
           const result = await ImagePicker.launchCameraAsync({
             quality: 0.85, allowsEditing: true, aspect: [4, 3],
           });
-          if (!result.canceled && result.assets?.length > 0) setImage(result.assets[0]);
+          if (!result.canceled && result.assets?.length > 0) setImageFn(result.assets[0]);
         },
       },
       {
@@ -376,7 +390,7 @@ const fetchPlan = useCallback(async () => {
           const result = await ImagePicker.launchImageLibraryAsync({
             quality: 0.85, allowsEditing: true, aspect: [4, 3],
           });
-          if (!result.canceled && result.assets?.length > 0) setImage(result.assets[0]);
+          if (!result.canceled && result.assets?.length > 0) setImageFn(result.assets[0]);
         },
       },
       { text: 'Cancel', style: 'cancel' },
@@ -392,6 +406,8 @@ const fetchPlan = useCallback(async () => {
 
   const resetForm = useCallback(() => {
     setImage(null);
+    setImage2(null);
+    setImage3(null);
     dispatch({ type: 'RESET' });
   }, []);
 
@@ -422,21 +438,35 @@ console.log('UPLOAD TOKEN:', token);
       const fd = new FormData();
       if (image) {
         if (image?.uri) {
-  const filename = image.uri.split('/').pop() || 'photo.jpg';
-
-  const ext = filename.split('.').pop()?.toLowerCase();
-
-  let mime = 'image/jpeg';
-
-  if (ext === 'png') mime = 'image/png';
-  if (ext === 'webp') mime = 'image/webp';
-
-  fd.append('image', {
-    uri: image.uri,
-    name: filename,
-    type: mime,
-  });
-}
+          const filename = image.uri.split('/').pop() || 'photo.jpg';
+          const ext = filename.split('.').pop()?.toLowerCase();
+          let mime = 'image/jpeg';
+          if (ext === 'png') mime = 'image/png';
+          if (ext === 'webp') mime = 'image/webp';
+          fd.append('image', {
+            uri: image.uri,
+            name: filename,
+            type: mime,
+          });
+        }
+      }
+      if (mode === 'item' && credits?.is_pro) {
+        if (image2 && image2.uri) {
+          const filename = image2.uri.split('/').pop() || 'photo2.jpg';
+          const ext = filename.split('.').pop()?.toLowerCase();
+          let mime = 'image/jpeg';
+          if (ext === 'png') mime = 'image/png';
+          if (ext === 'webp') mime = 'image/webp';
+          fd.append('image2', { uri: image2.uri, name: filename, type: mime });
+        }
+        if (image3 && image3.uri) {
+          const filename = image3.uri.split('/').pop() || 'photo3.jpg';
+          const ext = filename.split('.').pop()?.toLowerCase();
+          let mime = 'image/jpeg';
+          if (ext === 'png') mime = 'image/png';
+          if (ext === 'webp') mime = 'image/webp';
+          fd.append('image3', { uri: image3.uri, name: filename, type: mime });
+        }
       }
       if (mode === 'item') {
         fd.append('name', form.name.trim());
@@ -467,23 +497,33 @@ console.log('UPLOAD TOKEN:', token);
           if (isMounted.current) setLoading(false);
           return Alert.alert(
             'Item Limit Reached',
-            `You have ${credits} credit(s) left.\nWatch a short ad to earn +1 free credit.`,
+            `You have reached your product limit of ${credits?.product_limit ?? 20} items.\nWatch a short ad to earn +1 free credit (current balance: ${creditsRemaining} Cr).`,
             [
               {
                 text: '▶  Watch Ad',
                 onPress: () =>
                   showRewardedAd(async () => {
                     try {
-                      const rewardToken = await AsyncStorage.getItem('token');
-                      await fetch(`${BASE_URL}/api/reward/`, {
+                      const rewardToken = await AsyncStorage.getItem('token') || await AsyncStorage.getItem('access_token');
+                      const adRes = await fetch(`${BASE_URL}/api/credits/ad-complete/`, {
                         method: 'POST',
                         headers: {
+                          'Content-Type': 'application/json',
                           Authorization: `Bearer ${rewardToken}`,
                         },
+                        body: JSON.stringify({ ad_id: 'create_post_rewarded_watch_' + Date.now() })
                       });
+                      const adData = await adRes.json();
+                      if (!adRes.ok) {
+                        Alert.alert('Error', adData.error || 'Failed to claim reward');
+                        return;
+                      }
 
                       // reset loading before retry
                       if (isMounted.current) setLoading(false);
+
+                      // Refresh stats and credits
+                      await fetchPlan();
 
                       // retry upload using latest function ref
                       setTimeout(() => {
@@ -511,7 +551,7 @@ console.log('UPLOAD TOKEN:', token);
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [loading, mode, image, form, credits, resetForm, fetchPlan, router]);
+  }, [loading, mode, image, image2, image3, form, credits, creditsRemaining, resetForm, fetchPlan, router]);
 
   // ✅ Keep uploadRef in sync with the latest upload function after every render.
   useEffect(() => {
@@ -586,32 +626,70 @@ console.log('UPLOAD TOKEN:', token);
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.imagePicker}
-                  onPress={pickImage}
-                  activeOpacity={0.82}
-                >
-                  {image ? (
-                    <View>
-                      <Image
-                        source={{ uri: image.uri }}
-                        style={styles.imagePreview}
-                        fadeDuration={0}
-                      />
-                      <View style={styles.imageOverlay}>
-                        <TouchableOpacity style={styles.imageChangeBtn} onPress={pickImage}>
-                          <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
-                          <Text style={styles.imageChangeBtnText}>Change</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
-                          <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                        </TouchableOpacity>
+                {mode === 'item' && credits?.is_pro ? (
+                  <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'space-between' }}>
+                    {[
+                      { img: image, set: setImage, rem: () => setImage(null), label: 'Image 1' },
+                      { img: image2, set: setImage2, rem: () => setImage2(null), label: 'Image 2' },
+                      { img: image3, set: setImage3, rem: () => setImage3(null), label: 'Image 3' }
+                    ].map((slot, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[styles.imagePicker, { flex: 1, height: 110, marginHorizontal: 2 }]}
+                        onPress={() => pickImageIndexed(slot.set)}
+                        activeOpacity={0.82}
+                      >
+                        {slot.img ? (
+                          <View style={{ width: '100%', height: '100%' }}>
+                            <Image
+                              source={{ uri: slot.img.uri }}
+                              style={{ width: '100%', height: '100%', borderRadius: 12 }}
+                              fadeDuration={0}
+                            />
+                            <TouchableOpacity
+                              style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(239, 68, 68, 0.9)', borderRadius: 12, padding: 4 }}
+                              onPress={slot.rem}
+                            >
+                              <Ionicons name="trash-outline" size={12} color="#fff" />
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                            <Ionicons name="camera-outline" size={20} color={C.accent} />
+                            <Text style={{ fontSize: 10, fontWeight: '600', color: C.accent, marginTop: 4 }}>{slot.label}</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.imagePicker}
+                    onPress={() => pickImageIndexed(setImage)}
+                    activeOpacity={0.82}
+                  >
+                    {image ? (
+                      <View>
+                        <Image
+                          source={{ uri: image.uri }}
+                          style={styles.imagePreview}
+                          fadeDuration={0}
+                        />
+                        <View style={styles.imageOverlay}>
+                          <TouchableOpacity style={styles.imageChangeBtn} onPress={() => pickImageIndexed(setImage)}>
+                            <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
+                            <Text style={styles.imageChangeBtnText}>Change</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
+                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                  ) : (
-                    <ImagePlaceholder optional={!activeMode.requiresImage} />
-                  )}
-                </TouchableOpacity>
+                    ) : (
+                      <ImagePlaceholder optional={!activeMode.requiresImage} />
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 

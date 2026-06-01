@@ -24,7 +24,7 @@ const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 
 // ✅ Static image reference moved outside component — avoids re-evaluating
 //    require() on every render.
-const LOGO = require('../assets/images/logo_green.png');
+const LOGO = require('../assets/images/logo_splash_login.png');
 
 export default function Login() {
   const router = useRouter();
@@ -76,6 +76,7 @@ export default function Login() {
 
       AsyncStorage.multiSet([
         ['token', accessToken],
+        ['access_token', accessToken],
         ['refresh', refreshToken],
         ['user_id', String(data.user_id)],
         ['role', data.role || 'customer'],
@@ -116,7 +117,7 @@ export default function Login() {
               {/* ✅ Static LOGO constant — no re-evaluation of require() */}
               <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             </View>
-            <Text style={styles.brandName}>dukan</Text>
+            <Text style={styles.brandName}>MyDukan</Text>
             <Text style={styles.brandTagline}>Making local shopping easy</Text>
           </View>
 

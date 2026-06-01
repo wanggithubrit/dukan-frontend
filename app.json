@@ -1,25 +1,29 @@
 {
   "expo": {
-    "name": "DUKAN APP",
+    "name": "MyDukan",
     "slug": "dukan",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo_green.png",
+    "icon": "./assets/images/icon.png",
 
     "scheme": "dukan",
 
     "userInterfaceStyle": "automatic",
 
     "splash": {
-      "image": "./assets/images/logo_green.png",
+      "image": "./assets/images/logo_round.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F5F5"
+      "backgroundColor": "#0F2118"
     },
 
     "android": {
-      "versionCode": 18,
+      "versionCode": 19,
 
       "package": "com.mydukan.dukanapp",
+
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM"
+      ],
 
       "googleServicesFile": "./google-services.json",
 
@@ -71,16 +75,16 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo_green.png",
+          "image": "./assets/images/logo_round.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#F5F5F5",
+          "backgroundColor": "#0F2118",
 
           "dark": {
-            "image": "./assets/images/logo_green.png",
+            "image": "./assets/images/logo_round.png",
             "imageWidth": 160,
             "resizeMode": "contain",
-            "backgroundColor": "#0F1F18"
+            "backgroundColor": "#0F2118"
           }
         }
       ],

@@ -20,11 +20,11 @@ export default function Upgrade() {
 
     // 2️⃣ Open Razorpay
     const options = {
-      description: 'Dukan Pro Plan',
+      description: 'MyDukan Pro Plan',
       currency: 'INR',
       key: 'YOUR_KEY_ID',
       amount: data.amount,
-      name: 'Dukan',
+      name: 'MyDukan',
       order_id: data.id,
       prefill: {
         email: '',
@@ -57,7 +57,7 @@ export default function Upgrade() {
   return (
     <View style={{ padding: 20 }}>
       <Text>Upgrade to Pro</Text>
-      <Text>₹40 / month</Text>
+      <Text>₹59 / month</Text>
 
       <TouchableOpacity onPress={pay}>
         <Text>Pay with UPI</Text>

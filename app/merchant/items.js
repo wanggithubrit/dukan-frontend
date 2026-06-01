@@ -5,8 +5,9 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
+import { showRewardedAd } from '../../utils/rewardedAd';
 import {
-  ActivityIndicator, FlatList, InteractionManager,
+  ActivityIndicator, Alert, FlatList, InteractionManager,
   Modal,
   Platform, RefreshControl, StyleSheet,
   Switch,
@@ -131,6 +132,14 @@ export default function InventoryPage() {
   const [quantity,     setQuantity]     = useState('0');
   const [saving,       setSaving]       = useState(false);
 
+  const [creditStatus, setCreditStatus] = useState({
+    available_credits: 0,
+    product_limit: 20,
+    is_pro: false,
+  });
+  const [limitModalVisible, setLimitModalVisible] = useState(false);
+  const [purchasingLimit, setPurchasingLimit] = useState(false);
+
   const _Razorpay = require('react-native-razorpay');
   const RazorpayCheckout = _Razorpay && (_Razorpay.default || _Razorpay);
 
@@ -147,6 +156,81 @@ export default function InventoryPage() {
     tokenRef.current = t || at;
     return tokenRef.current;
   }, []);
+
+  const fetchCreditStatus = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/credits/status/`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreditStatus({
+          available_credits: data.available_credits,
+          product_limit: data.product_limit,
+          is_pro: data.is_pro,
+        });
+      }
+    } catch (err) {
+      console.log('Error fetching credit status in items.js:', err);
+    }
+  }, [getToken]);
+
+  const handleBuySlot = useCallback(async () => {
+    if (purchasingLimit) return;
+    if (creditStatus.available_credits < 10) {
+      Alert.alert('Insufficient Credits', 'You need at least 10 credits to unlock a product slot. Watch ads or complete store profile to earn credits!');
+      return;
+    }
+    setPurchasingLimit(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/credits/buy-limit/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert('Unlocked! 🎉', 'You have unlocked 1 additional product slot.');
+        setLimitModalVisible(false);
+        fetchCreditStatus();
+      } else {
+        Alert.alert('Error', data.error || 'Failed to purchase slot');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setPurchasingLimit(false);
+    }
+  }, [creditStatus, getToken, fetchCreditStatus, purchasingLimit]);
+
+  const handleWatchAd = useCallback(async () => {
+    showRewardedAd(async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`${BASE_URL}/api/credits/ad-complete/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ad_id: 'inventory_page_limit_watch_' + Date.now() }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          Alert.alert('Congratulations! 🎉', 'You watched the ad and earned 1 Credit.');
+          fetchCreditStatus();
+        } else {
+          Alert.alert('Error', data.error || 'Failed to claim reward');
+        }
+      } catch (err) {
+        Alert.alert('Error', 'Could not apply reward. Try again.');
+      }
+    });
+  }, [getToken, fetchCreditStatus]);
 
   const fetchInventory = useCallback(async (silent = false, signal = null) => {
     if (isFetching.current) return;
@@ -209,6 +293,7 @@ export default function InventoryPage() {
       const abortCtrl = new AbortController();
       const task = InteractionManager.runAfterInteractions(() => {
         fetchInventory(false, abortCtrl.signal);
+        fetchCreditStatus();
         startPolling(abortCtrl);
       });
       return () => {
@@ -216,7 +301,7 @@ export default function InventoryPage() {
         stopPolling();
         abortCtrl.abort();
       };
-    }, [fetchInventory, startPolling, stopPolling])
+    }, [fetchInventory, fetchCreditStatus, startPolling, stopPolling])
   );
 
   React.useEffect(() => {
@@ -230,7 +315,16 @@ export default function InventoryPage() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchInventory(false);
-  }, [fetchInventory]);
+    fetchCreditStatus();
+  }, [fetchInventory, fetchCreditStatus]);
+
+  const handleAddPress = useCallback(() => {
+    if (!creditStatus.is_pro && products.length >= creditStatus.product_limit) {
+      setLimitModalVisible(true);
+    } else {
+      router.push('/merchant/create-post');
+    }
+  }, [creditStatus, products.length, router]);
 
   const handleDelete = useCallback(async (id) => {
     setProducts(prev => {
@@ -308,7 +402,7 @@ export default function InventoryPage() {
         key: data.key,
         amount: data.amount,
         order_id: data.order_id,
-        name: 'Dukan',
+        name: 'MyDukan',
         theme: { color: '#2F5D50' },
       };
 
@@ -402,6 +496,18 @@ export default function InventoryPage() {
       </View>
 
       <AdBanner />
+
+      {!creditStatus.is_pro && products.length >= creditStatus.product_limit && (
+        <View style={styles.limitWarningBanner}>
+          <Ionicons name="warning-outline" size={16} color="#B45309" />
+          <Text style={styles.limitWarningText}>
+            You have reached the upload limit ({products.length}/{creditStatus.product_limit} items).
+          </Text>
+          <TouchableOpacity style={styles.limitWarningBtn} onPress={() => setLimitModalVisible(true)}>
+            <Text style={styles.limitWarningBtnText}>Unlock</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ─── Grid ─── */}
       <FlatList
@@ -558,11 +664,95 @@ export default function InventoryPage() {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* ─── Limit Reached Modal ─── */}
+      <Modal
+        visible={limitModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLimitModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setLimitModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.modalSheet}>
+                <View style={styles.dragHandle} />
+                
+                <View style={styles.limitHeader}>
+                  <View style={styles.limitIconBox}>
+                    <Ionicons name="lock-closed" size={32} color="#D97706" />
+                  </View>
+                  <Text style={styles.limitModalTitle}>Product Limit Reached</Text>
+                  <Text style={styles.limitModalSub}>
+                    You have used all {creditStatus.product_limit} free product slots. Choose an option below to continue listing products.
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                {/* Option 1: Watch Ad */}
+                <TouchableOpacity style={styles.optionRow} onPress={handleWatchAd} activeOpacity={0.8}>
+                  <View style={[styles.optionIconBox, { backgroundColor: '#E0F2FE' }]}>
+                    <Ionicons name="play-circle" size={24} color="#0284C7" />
+                  </View>
+                  <View style={styles.optionTextCol}>
+                    <Text style={styles.optionTitle}>Watch Video Ad</Text>
+                    <Text style={styles.optionSub}>Earn +1 credit immediately by watching a short video</Text>
+                  </View>
+                  <View style={styles.optionValueBadge}>
+                    <Text style={styles.optionValueText}>+1 Credit</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Option 2: Spend Credits */}
+                <TouchableOpacity 
+                  style={[styles.optionRow, creditStatus.available_credits < 10 && styles.optionRowDisabled]} 
+                  onPress={handleBuySlot} 
+                  disabled={purchasingLimit}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.optionIconBox, { backgroundColor: '#ECFDF5' }]}>
+                    <Ionicons name="flash" size={24} color="#059669" />
+                  </View>
+                  <View style={styles.optionTextCol}>
+                    <Text style={styles.optionTitle}>Use 10 Credits</Text>
+                    <Text style={styles.optionSub}>Unlock 1 additional product slot permanently</Text>
+                    <Text style={styles.optionBalance}>Current Balance: {creditStatus.available_credits} Credits</Text>
+                  </View>
+                  <View style={styles.optionValueBadgeSpend}>
+                    <Text style={styles.optionValueTextSpend}>Spend 10</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Option 3: Upgrade to Pro */}
+                <TouchableOpacity 
+                  style={[styles.optionRow, { borderBottomWidth: 0 }]} 
+                  onPress={() => { setLimitModalVisible(false); router.push('/merchant/profile'); }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.optionIconBox, { backgroundColor: '#F5F3FF' }]}>
+                    <Ionicons name="ribbon" size={24} color="#7C3AED" />
+                  </View>
+                  <View style={styles.optionTextCol}>
+                    <Text style={styles.optionTitle}>Upgrade to Pro Plan</Text>
+                    <Text style={styles.optionSub}>Get unlimited product slots, premium badges, and analytics</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#bbb" />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.closeModalBtn} onPress={() => setLimitModalVisible(false)}>
+                  <Text style={styles.closeModalText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
       {/* ─── Footer ─── */}
       <View style={styles.footer}>
         <NavBtn icon="home-outline"   label="Home"    onPress={() => router.push('/merchant/home')} />
         <NavBtn icon="grid"           label="Items"   active />
-        <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/merchant/create-post')} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.addBtn} onPress={handleAddPress} activeOpacity={0.85}>
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
         <NavBtn icon="person-outline" label="Profile" onPress={() => router.push('/merchant/profile')} />
@@ -808,4 +998,35 @@ const styles = StyleSheet.create({
   },
   saveBtnLoading: { opacity: 0.7 },
   saveText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+
+  /* limit warning banner */
+  limitWarningBanner: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7',
+    paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#FDE68A',
+    gap: 10,
+  },
+  limitWarningText: { flex: 1, fontSize: 12, fontWeight: '600', color: '#92400E' },
+  limitWarningBtn: { backgroundColor: '#D97706', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  limitWarningBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+  /* limit modal styles */
+  limitHeader: { alignItems: 'center', marginVertical: 12 },
+  limitIconBox: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  limitModalTitle: { fontSize: 18, fontWeight: '800', color: '#111', marginBottom: 6 },
+  limitModalSub: { fontSize: 13, color: '#666', textAlign: 'center', paddingHorizontal: 10, lineHeight: 18 },
+
+  optionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
+  optionRowDisabled: { opacity: 0.6 },
+  optionIconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  optionTextCol: { flex: 1 },
+  optionTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
+  optionSub: { fontSize: 11, color: '#666', lineHeight: 14 },
+  optionBalance: { fontSize: 10, fontWeight: '700', color: '#059669', marginTop: 4 },
+  optionValueBadge: { backgroundColor: '#E0F2FE', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  optionValueText: { fontSize: 11, fontWeight: '800', color: '#0369A1' },
+  optionValueBadgeSpend: { backgroundColor: '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  optionValueTextSpend: { fontSize: 11, fontWeight: '800', color: '#B91C1C' },
+
+  closeModalBtn: { backgroundColor: '#f3f4f6', paddingVertical: 13, borderRadius: 14, alignItems: 'center', marginTop: 14 },
+  closeModalText: { fontSize: 14, fontWeight: '700', color: '#4b5563' },
 });

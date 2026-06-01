@@ -233,7 +233,7 @@ export default function CustomerSignup() {
                   resizeMode="contain"
                 />
               </View>
-              <Text style={styles.brandName}>dukan</Text>
+              <Text style={styles.brandName}>MyDukan</Text>
               <Text style={styles.brandTagline}>Your local marketplace</Text>
             </View>
 

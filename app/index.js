@@ -8,15 +8,21 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { setupNotificationCategories, handleNotificationAction } from '../utils/pushNotificationScheduler';
 
 // ─── AdMob initialization ────────────────────────────────────────────────────
 let isMobileAdsInitialized = false;
 const initializeMobileAds = async () => {
   if (isMobileAdsInitialized) return;
   try {
-    const { mobileAds } = await import('react-native-google-mobile-ads');
-    await mobileAds().initialize();
-    isMobileAdsInitialized = true;
+    const adsModule = await import('react-native-google-mobile-ads');
+    const mobileAds = adsModule.default || adsModule.mobileAds;
+    if (typeof mobileAds === 'function') {
+      await mobileAds().initialize();
+      isMobileAdsInitialized = true;
+    } else {
+      console.debug('[index] AdMob init failed: mobileAds is not a function');
+    }
   } catch (_e) {
     console.debug('[index] AdMob init failed:', _e.message);
   }
@@ -44,9 +50,10 @@ export default function Index() {
   const router = useRouter();
   const navigationState = useRootNavigationState();
 
-  // ── 1. Init AdMob (safe — never crashes even if native module missing) ──
+  // ── 1. Init AdMob & Notification Categories (safe) ──
   useEffect(() => {
     initializeMobileAds();
+    setupNotificationCategories();
   }, []);
 
   // ── 2. Main auth + notification redirect (sequential, no race) ───────────
@@ -71,6 +78,14 @@ export default function Index() {
         const Notifications = require('expo-notifications');
         const response = await Notifications.getLastNotificationResponseAsync();
         if (!cancelled && response) {
+          const categoryId = response.notification.request.content.categoryIdentifier;
+          if (categoryId === 'shop_opening') {
+            router.replace('/merchant/home?triggerAction=open');
+            return;
+          } else if (categoryId === 'shop_closing') {
+            router.replace('/merchant/home?triggerAction=close');
+            return;
+          }
           const shopId = response.notification.request.content.data?.shop_id;
           if (shopId) {
             router.replace(`/shop/${shopId}`);
@@ -85,7 +100,7 @@ export default function Index() {
 
       // ── b) Normal auth check ──
       try {
-        const token = await AsyncStorage.getItem('access_token');
+        const token = (await AsyncStorage.getItem('token')) || (await AsyncStorage.getItem('access_token'));
         const role  = await AsyncStorage.getItem('role');
 
         if (cancelled) return;
@@ -147,10 +162,23 @@ export default function Index() {
       subscription = Notifications.addNotificationResponseReceivedListener(
         (response) => {
           try {
-            const shopId = response.notification.request.content.data?.shop_id;
-            if (shopId) router.push(`/shop/${shopId}`);
+            const actionId = response.actionIdentifier;
+            const categoryId = response.notification.request.content.categoryIdentifier;
+
+            if (actionId && actionId !== 'expo.modules.notifications.actions.DEFAULT') {
+              handleNotificationAction(actionId, categoryId, 'https://dukan-backend-0cc9.onrender.com');
+            } else {
+              if (categoryId === 'shop_opening') {
+                router.push('/merchant/home?triggerAction=open');
+              } else if (categoryId === 'shop_closing') {
+                router.push('/merchant/home?triggerAction=close');
+              } else {
+                const shopId = response.notification.request.content.data?.shop_id;
+                if (shopId) router.push(`/shop/${shopId}`);
+              }
+            }
           } catch (_e) {
-            console.debug('[index] notification nav failed:', _e.message);
+            console.debug('[index] notification action handling failed:', _e.message);
           }
         }
       );

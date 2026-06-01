@@ -18,6 +18,7 @@ import {
 import { Image } from 'expo-image';
 import {
   Animated,
+  Alert,
   Dimensions,
   Keyboard,
   KeyboardAvoidingView,
@@ -445,7 +446,7 @@ const BannerCarousel = memo(({ banners }) => {
 });
 BannerCarousel.displayName = 'BannerCarousel';
 
-const ItemModal = memo(({ item, visible, onClose }) => {
+const ItemModal = memo(({ item, visible, onClose, shop }) => {
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -519,6 +520,22 @@ const ItemModal = memo(({ item, visible, onClose }) => {
                 )}
 
                 {item.description ? <Text style={s.modalDesc}>{item.description}</Text> : null}
+                {shop && (shop.whatsapp_number || shop.phone) && (
+                  <TouchableOpacity
+                    style={s.quoteBtn}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      let phone = shop.whatsapp_number || shop.phone;
+                      phone = phone.replace(/\D/g, '');
+                      if (!phone.startsWith('91')) phone = '91' + phone;
+                      const text = `Hi, I am interested in "${item.name}" from your shop. Can you please check the price / provide a quote?`;
+                      Linking.openURL(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
+                    }}
+                  >
+                    <Ionicons name="logo-whatsapp" size={16} color={C.white} />
+                    <Text style={s.quoteBtnText}>Check Price / Quote</Text>
+                  </TouchableOpacity>
+                )}
                 <View style={s.swipeHint}>
                   <View style={s.swipeBar} />
                 </View>
@@ -647,6 +664,7 @@ const ShopListHeader = memo(({
   searchRef, onSearchBarLayout, scrollY,
   callShop, openWhatsApp, openMap,
   setSearchQuery, onSearchFocus, onSearchBlur, clearSearch,
+  reportStatus,
 }) => {
   const hasPhone    = !!shop.phone;
   const hasWhatsApp = !!(shop.phone || shop.whatsapp_number);
@@ -874,6 +892,36 @@ export default function ShopDetail() {
       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`);
   }, [shop?.latitude, shop?.longitude]);
 
+  const handleReportStatus = useCallback(async (details) => {
+    try {
+      const token = await AsyncStorage.getItem('token') || await AsyncStorage.getItem('access_token');
+      if (!token) {
+        Alert.alert("Authentication Required", "Please login to submit reports and earn Local Hero rewards.");
+        return;
+      }
+      const res = await fetch(`https://dukan-backend-0cc9.onrender.com/api/reports/submit/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          shop_id: id,
+          report_type: 'status',
+          details: details
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert("Thank you Hero!", `+10 Credits earned! Current Balance: ${data.reward_credits || 0}`);
+      } else {
+        Alert.alert("Failed to Submit", data.error || "Please login again.");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Network connection failed. Please try again.");
+    }
+  }, [id]);
+
   const handleToggleFavorite = useCallback(() => {
     Animated.sequence([
       Animated.spring(favScale, { toValue: 1.6, useNativeDriver: true, speed: 80 }),
@@ -952,7 +1000,7 @@ export default function ShopDetail() {
   return (
     <View style={s.safe}>
       <StatusBar style="light" />
-      <ItemModal item={selectedItem} visible={modalVisible} onClose={closeModal} />
+      <ItemModal item={selectedItem} visible={modalVisible} onClose={closeModal} shop={shop} />
 
       <View style={[s.fabBack, { top: HEADER_TOP - 12 }]}>
         <GlassFab icon="chevron-back" onPress={goBack} />
@@ -1013,6 +1061,7 @@ export default function ShopDetail() {
               onSearchFocus={onSearchFocus}
               onSearchBlur={onSearchBlur}
               clearSearch={clearSearch}
+              reportStatus={handleReportStatus}
             />
           }
           ListEmptyComponent={
@@ -1345,4 +1394,39 @@ const s = StyleSheet.create({
   modalDesc:  { fontSize: 13, color: C.textMid, lineHeight: 20, includeFontPadding: false },
   swipeHint:  { alignItems: 'center', paddingTop: 12 },
   swipeBar:   { width: 40, height: 3.5, borderRadius: 2, backgroundColor: C.border },
+  heroDivider: {
+    height: 1,
+    backgroundColor: C.border,
+    marginVertical: 12,
+  },
+  heroVerifyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FDFBF7',
+    borderWidth: 1,
+    borderColor: '#F0E5D3',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  heroVerifyText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8B6508',
+  },
+  quoteBtn: {
+    backgroundColor: '#25D366',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 11,
+    marginTop: 10,
+  },
+  quoteBtnText: {
+    color: C.white,
+    fontSize: 12,
+    fontWeight: '800',
+    marginLeft: 6,
+  },
 });
