@@ -4,9 +4,6 @@ import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as Print from 'expo-print';
-import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
 
 import {
   ActivityIndicator,
@@ -75,7 +72,7 @@ const SupportRow = ({ icon, title, subtitle, onPress }) => (
   </TouchableOpacity>
 );
 
-const QRModal = ({ visible, onClose, shop, onDownload, onPrintPDF, viewRef, qrRef }) => (
+const QRModal = ({ visible, onClose, shop, onDownload, viewRef }) => (
   <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
     <View style={styles.qrOverlay}>
       <View style={styles.qrModalCard}>
@@ -85,7 +82,7 @@ const QRModal = ({ visible, onClose, shop, onDownload, onPrintPDF, viewRef, qrRe
             <Text style={styles.qrTitle}>Scan to visit our shop</Text>
             <Text style={styles.qrShopName}>{shop?.name}</Text>
             <View style={styles.qrBox}>
-              <QRCode value={`https://mydukan.online/shop/${shop?.id}`} size={180} color="#1a1a1a" backgroundColor="#fff" getRef={qrRef} />
+              <QRCode value={`https://mydukan.online/shop/${shop?.id}`} size={180} color="#1a1a1a" backgroundColor="#fff" />
             </View>
             <Text style={styles.qrFooter}>Powered by MyDukan · Shop Smart</Text>
           </View>
@@ -94,10 +91,6 @@ const QRModal = ({ visible, onClose, shop, onDownload, onPrintPDF, viewRef, qrRe
           <TouchableOpacity style={styles.qrDownloadBtn} onPress={onDownload} activeOpacity={0.85}>
             <Ionicons name="share-social-outline" size={18} color="#fff" />
             <Text style={styles.qrDownloadText}>Share QR Code</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.qrDownloadBtn, { backgroundColor: '#1a1a1a' }]} onPress={onPrintPDF} activeOpacity={0.85}>
-            <Ionicons name="document-text-outline" size={18} color="#fff" />
-            <Text style={styles.qrDownloadText}>Print QR as PDF</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.qrCloseBtn} onPress={onClose} activeOpacity={0.7}>
             <Text style={styles.qrCloseText}>Close</Text>
@@ -167,7 +160,6 @@ const verifyPayment = async (payment) => {
 export default function MerchantProfile() {
   const router = useRouter();
   const viewRef = useRef(null);
-  const qrRef = useRef(null);
 
   const [data, setData] = useState({
     shop: null,
@@ -255,145 +247,7 @@ export default function MerchantProfile() {
     } catch (_err) { Alert.alert('Error', 'Could not generate QR'); }
   };
 
-  const handlePrintPDF = async () => {
-    if (!shop) return;
-    try {
-      let base64Logo = '';
-      try {
-        const asset = Asset.fromModule(require('../../assets/images/logo_splash_login.png'));
-        await asset.downloadAsync();
-        base64Logo = await FileSystem.readAsStringAsync(asset.localUri || asset.uri, {
-          encoding: 'base64',
-        });
-      } catch (err) {
-        console.warn('Could not load logo as base64', err);
-      }
 
-      let qrBase64 = '';
-      if (qrRef.current) {
-        await new Promise((resolve) => {
-          qrRef.current.toDataURL((data) => {
-            qrBase64 = data;
-            resolve();
-          });
-        });
-      }
-
-      if (!qrBase64) {
-        Alert.alert('Error', 'Unable to capture QR code data.');
-        return;
-      }
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Print QR - ${shop.name}</title>
-          <style>
-            body {
-              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-              margin: 0;
-              padding: 40px;
-              background-color: #ffffff;
-              color: #1a1a1a;
-              text-align: center;
-            }
-            .card {
-              border: 3px solid #2F5D50;
-              border-radius: 24px;
-              padding: 40px;
-              max-width: 500px;
-              margin: 0 auto;
-              background: #ffffff;
-              box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            }
-            .logo-container {
-              margin-bottom: 20px;
-            }
-            .logo {
-              width: 90px;
-              height: 90px;
-              object-fit: contain;
-              border-radius: 18px;
-            }
-            .title {
-              font-size: 26px;
-              font-weight: 800;
-              color: #2F5D50;
-              margin: 10px 0;
-              letter-spacing: -0.5px;
-            }
-            .subtitle {
-              font-size: 15px;
-              color: #666;
-              margin: 0 0 30px 0;
-              line-height: 1.5;
-            }
-            .qr-container {
-              background: #F7FAF8;
-              border: 1px solid #E8EFEA;
-              border-radius: 20px;
-              padding: 24px;
-              display: inline-block;
-              margin-bottom: 30px;
-            }
-            .qr-image {
-              width: 220px;
-              height: 220px;
-            }
-            .promo-text {
-              font-size: 18px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin: 15px 0 5px 0;
-            }
-            .catchphrase {
-              font-size: 14px;
-              font-weight: 600;
-              color: #2F5D50;
-              font-style: italic;
-              margin-bottom: 30px;
-            }
-            .footer {
-              font-size: 12px;
-              color: #8E9A96;
-              border-top: 1px solid #E8EFEA;
-              padding-top: 20px;
-              margin-top: 20px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <div class="logo-container">
-              ${base64Logo ? `<img class="logo" src="data:image/png;base64,${base64Logo}" alt="MyDukan Logo" />` : ''}
-            </div>
-            <div class="title">${shop.name}</div>
-            <div class="subtitle">Scan to discover our products and shop with us online!</div>
-            
-            <div class="qr-container">
-              <img class="qr-image" src="data:image/png;base64,${qrBase64}" alt="Shop QR Code" />
-            </div>
-
-            <div class="promo-text">Find it easy or quick nearby nextime</div>
-            <div class="catchphrase">Always connected with MyDukan</div>
-
-            <div class="footer">
-              Powered by MyDukan · Shop Smart & Local
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const { uri } = await Print.printToFileAsync({ html: htmlContent });
-      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Print QR Code - ${shop.name}`, UTI: 'com.adobe.pdf' });
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not generate PDF. Please try again.');
-    }
-  };
 
   const handleLogout = async () => {
     Alert.alert('Logout', 'Are you sure?', [
@@ -421,7 +275,7 @@ export default function MerchantProfile() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
-      <QRModal visible={ui.showQR} onClose={() => setUIKey('showQR', false)} shop={shop} onDownload={handleDownloadQR} onPrintPDF={handlePrintPDF} viewRef={viewRef} qrRef={qrRef} />
+      <QRModal visible={ui.showQR} onClose={() => setUIKey('showQR', false)} shop={shop} onDownload={handleDownloadQR} viewRef={viewRef} />
 
       {/* UPGRADE MODAL */}
       <Modal visible={ui.showUpgrade} transparent animationType="slide">
