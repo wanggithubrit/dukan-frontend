@@ -6,18 +6,18 @@ import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -205,7 +205,7 @@ export default function MerchantSignup() {
    * Example navigation from customer signup:
    *   router.push({ pathname: '/merchant-signup', params: { verifiedEmail: email, prefillUsername: username } });
    */
-  const { verifiedEmail = '', prefillUsername = '' } = useLocalSearchParams();
+  const { verifiedEmail = '', prefillUsername = '', referralCode = '' } = useLocalSearchParams();
 
   /* ── Form state ── */
   const [form, setForm] = useState({
@@ -216,6 +216,7 @@ export default function MerchantSignup() {
     shopName: '',
     category: '',
     address: '',
+    referralCode: referralCode || '',
   });
 
   const updateField = useCallback((key, value) => {
@@ -280,6 +281,7 @@ export default function MerchantSignup() {
           latitude: location.latitude,
           longitude: location.longitude,
           address: form.address,
+          referral_code: form.referralCode?.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -331,6 +333,24 @@ export default function MerchantSignup() {
 
             <Text style={styles.formTitle}>Seller Setup</Text>
             <Text style={styles.formSub}>Tell us about your shop</Text>
+
+            {/* ── Referral Code (optional) ── */}
+            <FieldGroup label="REFERRAL CODE (optional)">
+              <InputRow icon="star-outline">
+                <TextInput
+                  placeholder="Enter referral code"
+                  placeholderTextColor="#A3A3A3"
+                  style={styles.input}
+                  value={form.referralCode}
+                  onChangeText={(v) => updateField('referralCode', v)}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+              </InputRow>
+              {!!referralCode && (
+                <Text style={styles.referralNote}>Referral code applied from invitation link.</Text>
+              )}
+            </FieldGroup>
 
             {/* ── Username ── */}
             <FieldGroup label="USERNAME">
@@ -685,6 +705,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   preVerifiedText: { fontSize: 12, color: '#166534', flex: 1 },
+  referralNote: { color: '#166534', fontSize: 12, marginTop: 8 },
 
   otpPanel: {
     backgroundColor: '#F0FDF4', borderRadius: 12,

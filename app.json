@@ -3,6 +3,7 @@
     "name": "MyDukan",
     "slug": "dukan",
     "version": "1.0.0",
+    "newArchEnabled": false,
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
 
@@ -101,7 +102,15 @@
       "expo-sharing",
       "expo-font",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class com.swmansion.reanimated.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n-keep class com.razorpay.** { *; }\n-dontwarn com.razorpay.**"
+          }
+        }
+      ]
     ],
 
     "experiments": {

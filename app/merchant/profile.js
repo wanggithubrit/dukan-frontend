@@ -161,7 +161,7 @@ const verifyPayment = async (payment) => {
     });
     const data = await res.json();
     if (!res.ok || data.status !== 'success') throw new Error("Verification failed");
-  } catch (err) {
+  } catch (_err) {
     Alert.alert("Error", "Payment verification failed");
   }
 };
@@ -201,8 +201,8 @@ export default function MerchantProfile() {
         referral_code: json.referral_code || 'DUKAN777',
         referral_count: json.referral_count || 0
       });
-    } catch (_err) {
-      console.log(_err);
+    } catch (error) {
+      console.log(error);
     } finally {
       setUI(prev => ({ ...prev, loading: false, refreshing: false }));
     }
@@ -215,10 +215,16 @@ export default function MerchantProfile() {
 
   const shareReferral = async () => {
     try {
+      const referralCode = data.referral_code || 'DUKAN777';
+      const referralLink = `https://mydukan.online/merchant-signup?referralCode=${encodeURIComponent(referralCode)}`;
       await Share.share({
-        message: `Join mydukan as a merchant using my code: ${data.referral_code}\n\nBoost your sales today! 🚀`,
+        title: 'Join mydukan as a merchant',
+        message: `Join mydukan as a merchant using my code: ${referralCode}\n\nSign up here: ${referralLink}\n\nBoost your sales today! 🚀`,
+        url: referralLink,
       });
-    } catch (error) { console.log(error.message); }
+    } catch (error) {
+      console.log(error.message);
+    }
   };
 
   const handlePayment = async () => {
@@ -280,8 +286,9 @@ export default function MerchantProfile() {
     );
   }
 
-  const { shop, media, stats, plan, referral_count } = data;
-  const progress = (referral_count / 3) * 100;
+  const { shop, stats, plan, referral_count, referral_code } = data;
+  const refCode = referral_code || 'DUKAN777';
+  const progress = Math.min(((referral_count ?? 0) / 3) * 100, 100);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -349,9 +356,10 @@ export default function MerchantProfile() {
 
         <View style={styles.referralCard}>
           <Text style={styles.referralTitle}>Refer & Earn Pro</Text>
+          <Text style={styles.referralCodeText}>Your code: {refCode}</Text>
           <View style={styles.calcWrapper}>
             <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${Math.min(progress, 100)}%` }]} />
+              <View style={[styles.progressBar, { width: `${progress}%` }]} />
             </View>
             <Text style={styles.calcStatus}>{referral_count}/3 Friends Invited</Text>
           </View>
@@ -450,7 +458,8 @@ const styles = StyleSheet.create({
   upgradeBtn:       { backgroundColor: '#2F5D50', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   upgradeText:      { color: '#fff', fontWeight: '700', fontSize: 12 },
   referralCard:     { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12, borderRadius: 20, padding: 18 },
-  referralTitle:    { fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  referralTitle:    { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  referralCodeText: { fontSize: 14, color: '#2F5D50', fontWeight: '700', marginBottom: 12 },
   calcWrapper:      { marginBottom: 15 },
   progressContainer:{ height: 8, backgroundColor: '#E8EFEA', borderRadius: 4, overflow: 'hidden', marginBottom: 8 },
   progressBar:      { height: '100%', backgroundColor: '#2F5D50' },
