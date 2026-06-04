@@ -16,7 +16,8 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  Switch
+  Switch,
+  KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { scheduleShopReminders } from '../../utils/pushNotificationScheduler';
@@ -355,112 +356,117 @@ export default function EditShop() {
       >
         <TouchableWithoutFeedback onPress={() => setTimePickerVisible(false)}>
           <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.pickerSheet}>
-                <Text style={styles.pickerTitle}>
-                  Select {pickerTarget === 'opening_time' ? 'Opening' : 'Closing'} Time
-                </Text>
-
-                {/* Live Preview Display */}
-                <View style={styles.timePreviewContainer}>
-                  <Text style={styles.timePreviewLabel}>SELECTED TIME</Text>
-                  <Text style={styles.timePreviewText}>
-                    {String(selectedHour).padStart(2, '0')}:{String(selectedMinute).padStart(2, '0')} {selectedAmPm}
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
+            >
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.pickerSheet}>
+                  <Text style={styles.pickerTitle}>
+                    Select {pickerTarget === 'opening_time' ? 'Opening' : 'Closing'} Time
                   </Text>
-                </View>
 
-                {/* Period selector */}
-                <Text style={styles.pickerLabel}>Period</Text>
-                <View style={styles.ampmRow}>
-                  {['AM', 'PM'].map((p) => (
-                    <TouchableOpacity
-                      key={p}
-                      style={[styles.ampmBtn, selectedAmPm === p && styles.ampmBtnActive]}
-                      onPress={() => setSelectedAmPm(p)}
+                  {/* Live Preview Display */}
+                  <View style={styles.timePreviewContainer}>
+                    <Text style={styles.timePreviewLabel}>SELECTED TIME</Text>
+                    <Text style={styles.timePreviewText}>
+                      {String(selectedHour).padStart(2, '0')}:{String(selectedMinute).padStart(2, '0')} {selectedAmPm}
+                    </Text>
+                  </View>
+
+                  {/* Period selector */}
+                  <Text style={styles.pickerLabel}>Period</Text>
+                  <View style={styles.ampmRow}>
+                    {['AM', 'PM'].map((p) => (
+                      <TouchableOpacity
+                        key={p}
+                        style={[styles.ampmBtn, selectedAmPm === p && styles.ampmBtnActive]}
+                        onPress={() => setSelectedAmPm(p)}
+                      >
+                        <Text style={[styles.ampmText, selectedAmPm === p && styles.ampmTextActive]}>
+                          {p}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Hours grid */}
+                  <Text style={styles.pickerLabel}>Hour</Text>
+                  <View style={styles.gridContainer}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
+                      <TouchableOpacity
+                        key={h}
+                        style={[styles.gridCell, selectedHour === h && styles.gridCellActive]}
+                        onPress={() => setSelectedHour(h)}
+                      >
+                        <Text style={[styles.gridCellText, selectedHour === h && styles.gridCellTextActive]}>
+                          {h}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Minutes Stepper with Manual Input */}
+                  <Text style={styles.pickerLabel}>Minute (00 - 59)</Text>
+                  <View style={styles.minuteStepperRow}>
+                    <TouchableOpacity 
+                      style={styles.stepperBtn} 
+                      onPress={() => {
+                        let m = parseInt(selectedMinute, 10) || 0;
+                        m = (m - 1 + 60) % 60;
+                        setSelectedMinute(String(m).padStart(2, '0'));
+                      }}
                     >
-                      <Text style={[styles.ampmText, selectedAmPm === p && styles.ampmTextActive]}>
-                        {p}
-                      </Text>
+                      <Ionicons name="remove" size={20} color="#2F5D50" />
                     </TouchableOpacity>
-                  ))}
-                </View>
+                    
+                    <TextInput
+                      style={styles.minuteInput}
+                      value={String(selectedMinute)}
+                      onChangeText={(val) => {
+                        const cleaned = val.replace(/[^0-9]/g, '').slice(0, 2);
+                        setSelectedMinute(cleaned);
+                      }}
+                      onBlur={() => {
+                        let num = parseInt(selectedMinute, 10) || 0;
+                        if (num < 0) num = 0;
+                        if (num > 59) num = 59;
+                        setSelectedMinute(String(num).padStart(2, '0'));
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      textAlign="center"
+                    />
 
-                {/* Hours grid */}
-                <Text style={styles.pickerLabel}>Hour</Text>
-                <View style={styles.gridContainer}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => (
-                    <TouchableOpacity
-                      key={h}
-                      style={[styles.gridCell, selectedHour === h && styles.gridCellActive]}
-                      onPress={() => setSelectedHour(h)}
+                    <TouchableOpacity 
+                      style={styles.stepperBtn} 
+                      onPress={() => {
+                        let m = parseInt(selectedMinute, 10) || 0;
+                        m = (m + 1) % 60;
+                        setSelectedMinute(String(m).padStart(2, '0'));
+                      }}
                     >
-                      <Text style={[styles.gridCellText, selectedHour === h && styles.gridCellTextActive]}>
-                        {h}
-                      </Text>
+                      <Ionicons name="add" size={20} color="#2F5D50" />
                     </TouchableOpacity>
-                  ))}
-                </View>
+                  </View>
 
-                {/* Minutes Stepper with Manual Input */}
-                <Text style={styles.pickerLabel}>Minute (00 - 59)</Text>
-                <View style={styles.minuteStepperRow}>
-                  <TouchableOpacity 
-                    style={styles.stepperBtn} 
-                    onPress={() => {
-                      let m = parseInt(selectedMinute, 10) || 0;
-                      m = (m - 1 + 60) % 60;
-                      setSelectedMinute(String(m).padStart(2, '0'));
-                    }}
-                  >
-                    <Ionicons name="remove" size={20} color="#2F5D50" />
-                  </TouchableOpacity>
-                  
-                  <TextInput
-                    style={styles.minuteInput}
-                    value={String(selectedMinute)}
-                    onChangeText={(val) => {
-                      const cleaned = val.replace(/[^0-9]/g, '').slice(0, 2);
-                      setSelectedMinute(cleaned);
-                    }}
-                    onBlur={() => {
-                      let num = parseInt(selectedMinute, 10) || 0;
-                      if (num < 0) num = 0;
-                      if (num > 59) num = 59;
-                      setSelectedMinute(String(num).padStart(2, '0'));
-                    }}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    textAlign="center"
-                  />
-
-                  <TouchableOpacity 
-                    style={styles.stepperBtn} 
-                    onPress={() => {
-                      let m = parseInt(selectedMinute, 10) || 0;
-                      m = (m + 1) % 60;
-                      setSelectedMinute(String(m).padStart(2, '0'));
-                    }}
-                  >
-                    <Ionicons name="add" size={20} color="#2F5D50" />
-                  </TouchableOpacity>
+                  <View style={styles.pickerActions}>
+                    <TouchableOpacity 
+                      style={styles.cancelBtn} 
+                      onPress={() => setTimePickerVisible(false)}
+                    >
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.confirmBtn} 
+                      onPress={confirmTimeSelection}
+                    >
+                      <Text style={styles.confirmBtnText}>Set Time</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-
-                <View style={styles.pickerActions}>
-                  <TouchableOpacity 
-                    style={styles.cancelBtn} 
-                    onPress={() => setTimePickerVisible(false)}
-                  >
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.confirmBtn} 
-                    onPress={confirmTimeSelection}
-                  >
-                    <Text style={styles.confirmBtnText}>Set Time</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
