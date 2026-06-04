@@ -90,6 +90,10 @@ const CATEGORIES = [
   { name: 'Stationery', icon: 'pencil-outline' },
   { name: 'Furniture', icon: 'bed-outline' },
   { name: 'Books', icon: 'book-outline' },
+  { name: 'Home & Kitchen', icon: 'home-outline' },
+  { name: '🔧 Hardware & Tools', icon: 'construct-outline' },
+  { name: 'Computers & Accessories', icon: 'laptop-outline' },
+  { name: '🎁 Gifts & Toys', icon: 'gift-outline' },
   { name: 'Others', icon: 'grid-outline' },
 ];
 
@@ -104,6 +108,10 @@ const CATEGORY_COLORS = {
   Stationery: { bg: '#E0F2FE', text: '#0C4A6E', icon: '#0284C7', activeBg: '#0284C7' },
   Furniture: { bg: '#F5F3FF', text: '#4C1D95', icon: '#6D28D9', activeBg: '#6D28D9' },
   Books: { bg: '#FFF7ED', text: '#9A3412', icon: '#EA580C', activeBg: '#EA580C' },
+  'Home & Kitchen': { bg: '#E6F4EE', text: '#0E5C42', icon: '#1B7A58', activeBg: '#1B7A58' },
+  '🔧 Hardware & Tools': { bg: '#F3F4F6', text: '#374151', icon: '#4B5563', activeBg: '#4B5563' },
+  'Computers & Accessories': { bg: '#EFF6FF', text: '#1E40AF', icon: '#3B82F6', activeBg: '#3B82F6' },
+  '🎁 Gifts & Toys': { bg: '#FFF1F2', text: '#9F1239', icon: '#F43F5E', activeBg: '#F43F5E' },
   Others: { bg: '#F1F5F9', text: '#334155', icon: '#64748B', activeBg: '#475569' },
   All: { bg: '#E6F4EF', text: '#065F46', icon: '#0A5C43', activeBg: '#0A5C43' },
 };
@@ -119,6 +127,10 @@ const CATEGORY_ICONS = {
   Stationery: 'pencil-outline',
   Furniture: 'bed-outline',
   Books: 'book-outline',
+  'Home & Kitchen': 'home-outline',
+  '🔧 Hardware & Tools': 'construct-outline',
+  'Computers & Accessories': 'laptop-outline',
+  '🎁 Gifts & Toys': 'gift-outline',
   Others: 'grid-outline',
 };
 
@@ -168,8 +180,13 @@ const buildCityLabel = (place) => {
   return [primary, secondary].filter(Boolean).join(', ');
 };
 
-const normalizeCatKey = (category) =>
-  category ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase() : 'Others';
+const normalizeCatKey = (category) => {
+  if (!category) return 'Others';
+  const exactMatches = ['Home & Kitchen', '🔧 Hardware & Tools', 'Computers & Accessories', '🎁 Gifts & Toys'];
+  const found = exactMatches.find(c => c.toLowerCase() === category.toLowerCase());
+  if (found) return found;
+  return category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+};
 
 const getCategoryPlaceholderColor = (category) => {
   const map = {
@@ -183,6 +200,10 @@ const getCategoryPlaceholderColor = (category) => {
     Stationery: '#B3E5FC',
     Furniture: '#E1BEE7',
     Books: '#FFE0B2',
+    'Home & Kitchen': '#C7E2D5',
+    '🔧 Hardware & Tools': '#E5E7EB',
+    'Computers & Accessories': '#DBEAFE',
+    '🎁 Gifts & Toys': '#FFE4E6',
     Others: '#CFD8DC',
   };
   return map[normalizeCatKey(category)] || '#CFD8DC';

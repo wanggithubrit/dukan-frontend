@@ -29,7 +29,9 @@ const RESEND_COOLDOWN = 120;
 
 const CATEGORIES = [
   'Grocery', 'Footwear', 'Fashion', 'Medicine', 'Electronics',
-  'Bakeries', 'Rentals', 'Stationery', 'Books', 'Furniture', 'Others',
+  'Bakeries', 'Rentals', 'Stationery', 'Books', 'Furniture',
+  'Home & Kitchen', '🔧 Hardware & Tools', 'Computers & Accessories', '🎁 Gifts & Toys',
+  'Others',
 ];
 
 const formatTimer = (seconds) => {
