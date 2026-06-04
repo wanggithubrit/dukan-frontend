@@ -235,7 +235,10 @@ export default function MerchantProfile() {
       amount: data.amount,
       order_id: data.order_id,
       name: 'mydukan',
-      prefill: { email: 'test@mydukan.online', contact: '9999999999' },
+      prefill: {
+        email: data.shop?.owner_email || '',
+        contact: data.shop?.phone || ''
+      },
       theme: { color: '#2F5D50' },
     };
     RazorpayCheckout.open(options)
