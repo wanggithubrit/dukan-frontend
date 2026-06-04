@@ -13,7 +13,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Share
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
@@ -141,6 +142,19 @@ export default function Profile() {
 
   const toggleFeedback = useCallback(() => setShowFeedback(v => !v), []);
 
+  const handleShareAppLink = useCallback(async () => {
+    try {
+      const playStoreLink = 'https://play.google.com/store/apps/details?id=com.mydukan.dukanapp';
+      const message = `🏪 Discover local shops and items instantly with MyDukan!\n\nDownload MyDukan here:\n${playStoreLink}`;
+      await Share.share({
+        message,
+        title: 'Share MyDukan App',
+      });
+    } catch (error) {
+      console.error('[Share App] Share failed:', error);
+    }
+  }, []);
+
   const submitFeedback = useCallback(async () => {
     if (!feedback.trim() || sending) return;
     setSending(true);
@@ -260,6 +274,15 @@ export default function Profile() {
               label="Saved Shops"
               sublabel="Your favourite stores"
               onPress={() => router.push('/favorites')}
+            />
+            <View style={s.divider} />
+            <MenuRow
+              icon="share-social-outline"
+              iconColor="#0F5C43"
+              iconBg="rgba(14,92,67,0.15)"
+              label="Share App Link"
+              sublabel="Share MyDukan app with friends"
+              onPress={handleShareAppLink}
             />
             <View style={s.divider} />
             <MenuRow
