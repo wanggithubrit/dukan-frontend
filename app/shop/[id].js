@@ -104,6 +104,18 @@ const formatDistance = (d) => {
   return `Approx. ${n.toFixed(1)} km`;
 };
 
+const formatTime = (timeStr) => {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return timeStr;
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
 function useShopData(id) {
   const [shop,       setShop]       = useState(null);
   const [banners,    setBanners]    = useState([]);
@@ -780,6 +792,18 @@ const ShopListHeader = memo(({
           </Text>
         </View>
 
+        {shop.opening_time && shop.closing_time ? (
+          <View style={s.timingBadge}>
+            <Ionicons name="time" size={14} color={C.primary} style={{ marginRight: 6 }} />
+            <Text style={s.timingText}>
+              Business Hours:{' '}
+              <Text style={s.timingHours}>
+                {formatTime(shop.opening_time)} – {formatTime(shop.closing_time)}
+              </Text>
+            </Text>
+          </View>
+        ) : null}
+
         {shop.description ? (
           <View style={s.descBox}>
             <Text style={s.descLabel}>ABOUT OUR SHOP</Text>
@@ -1296,6 +1320,28 @@ const s = StyleSheet.create({
 
   addrRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginBottom: 2 },
   addrText: { flex: 1, fontSize: 12.5, color: C.textLight, lineHeight: 18, includeFontPadding: false },
+  timingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F7F4',
+    borderWidth: 1,
+    borderColor: '#DDECE5',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  timingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.textMid,
+    includeFontPadding: false,
+  },
+  timingHours: {
+    fontWeight: '800',
+    color: C.primary,
+  },
   descBox: {
     marginTop: 8,
     padding: 10,
