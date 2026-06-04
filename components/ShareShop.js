@@ -58,9 +58,9 @@ export default function ShareShop({ shop, customStyle }) {
     const message = [
       `🏪 Check out this shop on MyDukan`,
       `\nShop: ${shopName}`,
+      `Link: https://mydukan.online/shop/${shop.id}`,
       address ? `Location: ${address}` : null,
       `Category: ${category}`,
-      `\nView Shop: https://mydukan.online/shop/${shop.id}`,
       `\nDiscover products and connect with local businesses using MyDukan.`,
       `\nDownload MyDukan:`,
       playStoreLink
