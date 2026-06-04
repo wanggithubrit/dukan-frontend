@@ -33,10 +33,11 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdBanner from '../../components/AdBanner';
-import ShareShop from '../../components/ShareShop';
+import { trackShareEvent } from '../../utils/shareAnalytics';
 
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 const { width } = Dimensions.get('window');
@@ -814,7 +815,6 @@ const ShopListHeader = memo(({
             disabled={!shop.latitude}
           />
         </View>
-        <ShareShop shop={shop} customStyle={{ marginTop: 12 }} />
       </View>
 
       <View style={s.section}>
@@ -1007,6 +1007,45 @@ export default function ShopDetail() {
     toggleFavorite(shop.id);
   }, [favScale, toggleFavorite, shop?.id]);
 
+  const handleShareShop = useCallback(async () => {
+    if (!shop || !shop.name) {
+      Alert.alert('Error', 'Unable to share shop due to missing details.');
+      return;
+    }
+
+    await trackShareEvent('shop_share_button_clicked', shop);
+
+    const playStoreLink = 'https://play.google.com/store/apps/details?id=com.mydukan.dukanapp';
+    const shopName = shop.name;
+    const category = shop.category || 'Local Business';
+    const address = shop.address || '';
+    
+    const message = [
+      `🏪 Check out this shop on MyDukan`,
+      `\nShop: ${shopName}`,
+      `Link: https://mydukan.online/shop/${shop.id}`,
+      address ? `Location: ${address}` : null,
+      `Category: ${category}`,
+      `\nDiscover products and connect with local businesses using MyDukan.`,
+      `\nDownload MyDukan:`,
+      playStoreLink
+    ].filter(Boolean).join('\n');
+
+    try {
+      const result = await Share.share({
+        message,
+        title: `Share ${shopName}`,
+      });
+
+      if (result.action === Share.sharedAction) {
+        await trackShareEvent('shop_shared_successfully', shop);
+      }
+    } catch (error) {
+      console.error('[Share] Share failed:', error);
+      Alert.alert('Sharing Failed', 'Could not open sharing panel.');
+    }
+  }, [shop]);
+
   const filteredItems = items.filter((i) =>
     i.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -1084,6 +1123,7 @@ export default function ShopDetail() {
       </View>
 
       <View style={[s.fabRight, { top: HEADER_TOP - 12 }]}>
+        <GlassFab icon="share-social-outline" onPress={handleShareShop} />
         <TouchableOpacity
           style={s.glassFab}
           onPress={handleToggleFavorite}
