@@ -329,7 +329,7 @@ export default function MerchantProfile() {
           <View style={styles.statsRow}>
             <Stat label="Followers" value={stats?.followers ?? 0} icon="people-outline" />
             <Stat label="Items" value={`${stats?.items ?? 0}`} icon="pricetags-outline" />
-            <Stat label="Views" value={stats?.views ?? 0} icon="eye-outline" />
+            <Stat label="Views (Week)" value={stats?.views ?? 0} icon="eye-outline" />
           </View>
         </View>
 

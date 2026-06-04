@@ -1213,7 +1213,7 @@ export default function MerchantHome() {
               <View style={styles.statDivider} />
               <Stat label="Followers" value={stats.followers} icon="heart-outline" />
               <View style={styles.statDivider} />
-              <Stat label="Views" value={stats.views} icon="eye-outline" />
+              <Stat label="Views (Week)" value={stats.views} icon="eye-outline" />
             </View>
 
             {/* ── QUICK ACTIONS ── */}
