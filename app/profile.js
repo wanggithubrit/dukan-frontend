@@ -361,14 +361,14 @@ export default function Profile() {
             <TouchableOpacity
               style={s.socialCard}
               activeOpacity={0.85}
-              onPress={() => Linking.openURL('https://www.youtube.com/@dukan-316')}
+              onPress={() => Linking.openURL('https://www.youtube.com/channel/UCL1BkfKBa89jjHgudjR8P7g')}
             >
               <View style={[s.socialIcon, { backgroundColor: '#FF0000' }]}>
                 <Ionicons name="logo-youtube" size={19} color="#fff" />
               </View>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={s.socialName}>YouTube</Text>
-                <Text style={s.socialHandle}>@dukand-316</Text>
+                <Text style={[s.socialHandle, { fontSize: 10 }]} numberOfLines={2}>Subscribe for tutorials and many more</Text>
               </View>
             </TouchableOpacity>
           </View>
