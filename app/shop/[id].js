@@ -5,6 +5,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -15,10 +16,9 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Image } from 'expo-image';
 import {
-  Animated,
   Alert,
+  Animated,
   Dimensions,
   Keyboard,
   KeyboardAvoidingView,
@@ -26,6 +26,7 @@ import {
   Modal,
   Platform,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -35,6 +36,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdBanner from '../../components/AdBanner';
+import ShareShop from '../../components/ShareShop';
 
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 const { width } = Dimensions.get('window');
@@ -84,6 +86,8 @@ const getImageUrl = (img) =>
     : img.startsWith('http')
     ? img
     : `${BASE_URL}${img}`;
+
+const getItemImages = (item) => [item?.image, item?.image2, item?.image3].filter(Boolean);
 
 const templateGradients = {
   red:   ['#9B1C1C', '#C0392B'],
@@ -310,17 +314,24 @@ const ItemCard = memo(function ItemCard({ item, onPress }) {
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 60, bounciness: 8 }).start();
   }, [scale]);
   const handlePress = useCallback(() => onPress(item), [item, onPress]);
+  const images = getItemImages(item);
 
   return (
     <TouchableWithoutFeedback onPressIn={onPressIn} onPressOut={onPressOut} onPress={handlePress}>
       <Animated.View style={[s.itemCard, { transform: [{ scale }] }]}>
+
         <View style={s.itemImgWrap}>
           <Image
-            source={{ uri: getImageUrl(item.image) }}
+            source={{ uri: getImageUrl(images[0]) }}
             style={s.itemImg}
-            resizeMode="cover"
+            contentFit="cover"
           />
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.45)']} style={s.itemImgGrad} />
+          {images.length > 1 && (
+            <View style={s.itemPhotoCountBadge}>
+              <Text style={s.itemPhotoCountText}>{images.length} Photos</Text>
+            </View>
+          )}
           {item.price != null && (
             <LinearGradient
               colors={[C.primary, C.primaryMid]}
@@ -413,7 +424,7 @@ const BannerCarousel = memo(({ banners }) => {
               <Image
                 source={{ uri: getImageUrl(b.image) }}
                 style={s.offerImage}
-                resizeMode="cover"
+                contentFit="cover"
               />
             ) : (
               <LinearGradient
@@ -448,6 +459,9 @@ BannerCarousel.displayName = 'BannerCarousel';
 
 const ItemModal = memo(({ item, visible, onClose, shop }) => {
   const anim = useRef(new Animated.Value(0)).current;
+  const [activeImage, setActiveImage] = useState(0);
+  const carouselRef = useRef(null);
+  const images = getItemImages(item);
 
   useEffect(() => {
     Animated.spring(anim, {
@@ -458,10 +472,20 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
     }).start();
   }, [visible, anim]);
 
+  useEffect(() => {
+    if (visible) setActiveImage(0);
+  }, [visible, item]);
+
   if (!item) return null;
 
   const scaleOut  = anim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] });
   const slideOut  = anim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
+  const MODAL_IMG_HEIGHT = 280;
+
+  const handleCarouselScroll = (e) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+    setActiveImage(idx);
+  };
 
   return (
     <Modal transparent visible={visible} onRequestClose={onClose} animationType="fade" statusBarTranslucent>
@@ -472,16 +496,63 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
               s.modalCard,
               { opacity: anim, transform: [{ scale: scaleOut }, { translateY: slideOut }] },
             ]}>
-              <Image
-                source={{ uri: getImageUrl(item.image) }}
-                style={s.modalImage}
-                resizeMode="cover"
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.18)']}
-                style={StyleSheet.absoluteFill}
-                pointerEvents="none"
-              />
+              <View style={{ height: MODAL_IMG_HEIGHT, overflow: 'hidden', position: 'relative' }}>
+                <ScrollView
+                  ref={carouselRef}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  scrollEventThrottle={16}
+                  onMomentumScrollEnd={handleCarouselScroll}
+                >
+                  {images.map((uri, idx) => (
+                    <Image
+                      key={idx}
+                      source={{ uri: getImageUrl(uri) }}
+                      style={{ width, height: MODAL_IMG_HEIGHT }}
+                      contentFit="cover"
+                    />
+                  ))}
+                </ScrollView>
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.18)']}
+                  style={StyleSheet.absoluteFill}
+                  pointerEvents="none"
+                />
+                {images.length > 1 && (
+                  <>
+                    <TouchableOpacity
+                      style={[s.carouselArrow, s.carouselArrowLeft]}
+                      onPress={() => {
+                        const nextIdx = activeImage === 0 ? images.length - 1 : activeImage - 1;
+                        setActiveImage(nextIdx);
+                        carouselRef.current?.scrollTo({ x: nextIdx * width, animated: true });
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={s.carouselArrowText}>‹</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.carouselArrow, s.carouselArrowRight]}
+                      onPress={() => {
+                        const nextIdx = activeImage === images.length - 1 ? 0 : activeImage + 1;
+                        setActiveImage(nextIdx);
+                        carouselRef.current?.scrollTo({ x: nextIdx * width, animated: true });
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={s.carouselArrowText}>›</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {images.length > 1 && (
+                  <View style={s.carouselDots}>
+                    {images.map((_, i) => (
+                      <View key={i} style={[s.carouselDot, activeImage === i && s.carouselDotActive]} />
+                    ))}
+                  </View>
+                )}
+              </View>
               <TouchableOpacity style={s.modalClose} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close" size={15} color={C.text} />
               </TouchableOpacity>
@@ -520,25 +591,30 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
                 )}
 
                 {item.description ? <Text style={s.modalDesc}>{item.description}</Text> : null}
-                {shop && (shop.whatsapp_number || shop.phone) && (
-                  <TouchableOpacity
-                    style={s.quoteBtn}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      let phone = shop.whatsapp_number || shop.phone;
-                      phone = phone.replace(/\D/g, '');
-                      if (!phone.startsWith('91')) phone = '91' + phone;
-                      const text = `Hi, I am interested in "${item.name}" from your shop. Can you please check the price / provide a quote?`;
-                      Linking.openURL(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`);
-                    }}
-                  >
-                    <Ionicons name="logo-whatsapp" size={16} color={C.white} />
-                    <Text style={s.quoteBtnText}>Check Price / Quote</Text>
-                  </TouchableOpacity>
-                )}
                 <View style={s.swipeHint}>
                   <View style={s.swipeBar} />
                 </View>
+              {images.length > 1 && (
+                <View style={s.modalThumbsRow}>
+                  {images.map((uri, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[s.modalThumbWrap, activeImage === index && s.modalThumbActive]}
+                      onPress={() => {
+                        setActiveImage(index);
+                        carouselRef.current?.scrollTo({ x: index * width, animated: true });
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={{ uri: getImageUrl(uri) }}
+                        style={s.modalThumb}
+                        contentFit="cover"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               </View>
             </Animated.View>
           </TouchableWithoutFeedback>
@@ -622,7 +698,7 @@ const CoverCarousel = memo(({ media, shop, isPro, scrollY }) => {
       key={key}
       source={{ uri }}
       style={[{ width, height: COVER_HEIGHT + 40, marginTop: -20 }, { transform: [{ translateY: imgTranslate }] }]}
-      resizeMode="cover"
+      contentFit="cover"
     />
   );
 
@@ -738,6 +814,7 @@ const ShopListHeader = memo(({
             disabled={!shop.latitude}
           />
         </View>
+        <ShareShop shop={shop} customStyle={{ marginTop: 12 }} />
       </View>
 
       <View style={s.section}>
@@ -1308,7 +1385,40 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 }, elevation: 6,
   },
   itemPriceBadgeText: { color: C.white, fontSize: 10.5, fontWeight: '800', includeFontPadding: false },
+  itemPhotoCountBadge: {
+    position: 'absolute', top: 8, left: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  itemPhotoCountText: {
+    color: C.white,
+    fontSize: 10,
+    fontWeight: '700',
+    includeFontPadding: false,
+  },
   itemBody: { padding: 9 },
+  modalThumbsRow: {
+    flexDirection: 'row',
+    marginTop: 18,
+    gap: 10,
+  },
+  modalThumbWrap: {
+    width: 60,
+    height: 42,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  modalThumbActive: {
+    borderColor: C.primary,
+  },
+  modalThumb: {
+    width: '100%',
+    height: '100%',
+  },
   itemName: { fontSize: 11.5, fontWeight: '700', color: C.text, lineHeight: 15, marginBottom: 3, includeFontPadding: false },
   itemDesc: { fontSize: 9.5, color: C.textLight, includeFontPadding: false },
 
@@ -1377,6 +1487,35 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 }, elevation: 20,
   },
   modalImage: { width: '100%', height: 240 },
+  carouselDots: {
+    position: 'absolute', bottom: 8, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', gap: 5,
+  },
+  carouselDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  carouselDotActive: {
+    backgroundColor: C.white,
+    width: 16,
+  },
+  carouselArrow: {
+    position: 'absolute', top: '50%', marginTop: -16,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.shadow, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4,
+  },
+  carouselArrowLeft: {
+    left: 8,
+  },
+  carouselArrowRight: {
+    right: 8,
+  },
+  carouselArrowText: {
+    fontSize: 24, fontWeight: '700', color: C.text,
+    includeFontPadding: false,
+  },
   modalClose: {
     position: 'absolute', top: 12, right: 12,
     width: 32, height: 32, borderRadius: 16,

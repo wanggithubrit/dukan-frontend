@@ -22,6 +22,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -198,7 +199,7 @@ const StyledInput = memo(({ label, required, iconName, prefix, hint, ...props })
 });
 StyledInput.displayName = 'StyledInput';
 
-const CreditsChip = memo(({ credits, limitReached }) => (
+const CreditsChip = memo(({ message, limitReached }) => (
   <View style={limitReached ? styles.creditsChipWarning : styles.creditsChip}>
     <Ionicons
       name={limitReached ? 'warning-outline' : 'flash-outline'}
@@ -206,9 +207,7 @@ const CreditsChip = memo(({ credits, limitReached }) => (
       color={limitReached ? C.warning : C.accent}
     />
     <Text style={limitReached ? styles.creditsTextWarning : styles.creditsText}>
-      {limitReached
-        ? 'Item limit reached — watch an ad to get +1 free credit'
-        : `${credits} credit${credits !== 1 ? 's' : ''} remaining`}
+      {message}
     </Text>
   </View>
 ));
@@ -337,13 +336,23 @@ export default function CreatePost() {
   const { plan, stats, credits } = planData;
   const activeMode         = useMemo(() => MODES.find(m => m.key === mode), [mode]);
   const showPhotoStep      = !activeMode.hidePhoto;
+  const creditsRemaining   = useMemo(() => credits?.available_credits ?? 0, [credits]);
+  const isProLimitReached = useMemo(() => credits?.is_pro && (stats?.items ?? 0) >= 120, [credits, stats]);
   const isItemLimitReached = useMemo(() => {
-    if (credits?.is_pro) return false;
+    if (credits?.is_pro) return isProLimitReached;
     const limit = credits?.product_limit ?? 20;
     const currentCount = stats?.items ?? 0;
     return currentCount >= limit;
-  }, [credits, stats]);
-  const creditsRemaining   = useMemo(() => credits?.available_credits ?? 0, [credits]);
+  }, [credits, stats, isProLimitReached]);
+  const itemLimitMessage = useMemo(() => {
+    if (credits?.is_pro && isProLimitReached) {
+      return 'Item limit reached — max 120 items. Contact support or send feedback to increase your limit.';
+    }
+    return isItemLimitReached
+      ? 'Item limit reached — watch an ad to get +1 free credit'
+      : `${creditsRemaining} credit${creditsRemaining !== 1 ? 's' : ''} remaining`;
+  }, [credits, creditsRemaining, isItemLimitReached, isProLimitReached]);
+  const publishDisabled = loading || (mode === 'item' && credits?.is_pro && isProLimitReached);
 
   const checks = useMemo(() => {
     if (mode === 'cover') return [
@@ -420,6 +429,20 @@ export default function CreatePost() {
 console.log('UPLOAD TOKEN:', token);
     
     if (!token) return Alert.alert('Session Expired', 'Please log in again.');
+
+    if (mode === 'item' && credits?.is_pro && stats?.items >= 120) {
+      return Alert.alert(
+        'Item Limit Reached',
+        'You have reached the maximum limit of 120 items on the Pro plan. To increase your limit further, please contact support or send us feedback.',
+        [
+          {
+            text: '📧 Email Support',
+            onPress: () => Linking.openURL('mailto:dukanpersonal316@gmail.com?subject=Request More Product Slots'),
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
 
     if (mode === 'cover' && !image)
       return Alert.alert('Photo Required', 'Please add a banner image to continue.');
@@ -610,7 +633,7 @@ console.log('UPLOAD TOKEN:', token);
 
             {/* Credits chip — items only */}
             {mode === 'item' && (
-              <CreditsChip credits={credits} limitReached={isItemLimitReached} />
+              <CreditsChip message={itemLimitMessage} limitReached={isItemLimitReached} />
             )}
 
             {/* ── Step 2: Photo (hidden for offer) ── */}
@@ -777,10 +800,10 @@ console.log('UPLOAD TOKEN:', token);
 
             {/* ── Publish button ── */}
             <TouchableOpacity
-              style={[styles.publishBtn, (!canPublish || loading) && styles.publishBtnDisabled]}
+              style={[styles.publishBtn, (!canPublish || publishDisabled) && styles.publishBtnDisabled]}
               onPress={upload}
               activeOpacity={0.85}
-              disabled={loading}
+              disabled={publishDisabled}
             >
               {loading ? (
                 <ActivityIndicator color={C.white} size="small" />

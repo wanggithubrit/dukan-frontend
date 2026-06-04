@@ -1,22 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Image } from 'expo-image';
-import { showRewardedAd } from '../../utils/rewardedAd';
 import {
-  ActivityIndicator, Alert, FlatList, InteractionManager,
-  Linking,
-  Modal,
-  Platform, RefreshControl, StyleSheet,
-  Switch,
-  Text, TextInput,
-  TouchableOpacity, TouchableWithoutFeedback, View,
+    ActivityIndicator, Alert, FlatList, InteractionManager,
+    Linking,
+    Modal,
+    Platform, RefreshControl, StyleSheet,
+    Switch,
+    Text, TextInput,
+    TouchableOpacity, TouchableWithoutFeedback, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AdBanner from '../../components/AdBanner';
+import { showRewardedAd } from '../../utils/rewardedAd';
 
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 const POLL_MS  = 60_000;
@@ -40,35 +41,50 @@ const NavBtn = React.memo(({ icon, label, onPress, active }) => (
 ));
 NavBtn.displayName = 'NavBtn';
 
-const ProductCard = React.memo(({ item, onDelete, onEdit }) => (
-  <TouchableOpacity style={styles.card} activeOpacity={0.92} onPress={() => onEdit(item)}>
-    <View style={styles.imageWrap}>
-      <Image source={{ uri: getImageUrl(item.image) }} style={styles.cardImg} resizeMode="cover" />
-      <TouchableOpacity style={styles.delBtn} onPress={() => onDelete(item.id)}>
-        <Ionicons name="trash-outline" size={14} color="#FF4444" />
-      </TouchableOpacity>
-      {item.track_quantity && item.quantity_status === 'out' && (
-        <View style={styles.outOfStockBadge}>
-          <Text style={styles.outOfStockText}>Out of Stock</Text>
-        </View>
-      )}
-    </View>
-    <View style={styles.cardBody}>
-      <Text style={styles.cardCat}>{item.category || 'GENERAL'}</Text>
-      <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.cardPrice}>
-        {item.price ? `₹${Number(item.price).toLocaleString()}` : 'No Price'}
-      </Text>
-      {item.track_quantity && (
-        <View style={styles.stockWrap}>
-          {item.quantity_status === 'out' && <Text style={styles.stockOut}>Out of Stock</Text>}
-          {item.quantity_status === 'low' && <Text style={styles.stockLow}>Only {item.quantity} left</Text>}
-          {item.quantity_status === 'in' && <Text style={styles.stockIn}>In Stock ({item.quantity})</Text>}
-        </View>
-      )}
-    </View>
-  </TouchableOpacity>
-));
+const ProductCard = React.memo(({ item, onDelete, onEdit }) => {
+  const images = [item.image, item.image2, item.image3].filter(Boolean);
+  return (
+    <TouchableOpacity style={styles.card} activeOpacity={0.92} onPress={() => onEdit(item)}>
+      <View style={styles.imageWrap}>
+        <Image source={{ uri: getImageUrl(images[0] || '') }} style={styles.cardImg} resizeMode="cover" />
+        <TouchableOpacity style={styles.delBtn} onPress={() => onDelete(item.id)}>
+          <Ionicons name="trash-outline" size={14} color="#FF4444" />
+        </TouchableOpacity>
+        {item.track_quantity && item.quantity_status === 'out' && (
+          <View style={styles.outOfStockBadge}>
+            <Text style={styles.outOfStockText}>Out of Stock</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.cardBody}>
+        <Text style={styles.cardCat}>{item.category || 'GENERAL'}</Text>
+        <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.cardPrice}>
+          {item.price ? `₹${Number(item.price).toLocaleString()}` : 'No Price'}
+        </Text>
+        {images.length > 1 && (
+          <View style={styles.thumbnailRow}>
+            {images.slice(0, 3).map((img, index) => (
+              <Image
+                key={index}
+                source={{ uri: getImageUrl(img) }}
+                style={styles.thumbnailImg}
+                resizeMode="cover"
+              />
+            ))}
+          </View>
+        )}
+        {item.track_quantity && (
+          <View style={styles.stockWrap}>
+            {item.quantity_status === 'out' && <Text style={styles.stockOut}>Out of Stock</Text>}
+            {item.quantity_status === 'low' && <Text style={styles.stockLow}>Only {item.quantity} left</Text>}
+            {item.quantity_status === 'in' && <Text style={styles.stockIn}>In Stock ({item.quantity})</Text>}
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+});
 ProductCard.displayName = 'ProductCard';
 
 const EmptyState = React.memo(({ query }) => (
@@ -129,6 +145,12 @@ export default function InventoryPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editName,     setEditName]     = useState('');
   const [editPrice,    setEditPrice]    = useState('');
+  const [editImage1,   setEditImage1]   = useState(null);
+  const [editImage2,   setEditImage2]   = useState(null);
+  const [editImage3,   setEditImage3]   = useState(null);
+  const [removeImage1, setRemoveImage1] = useState(false);
+  const [removeImage2, setRemoveImage2] = useState(false);
+  const [removeImage3, setRemoveImage3] = useState(false);
   const [trackQuantity,setTrackQuantity]= useState(false);
   const [quantity,     setQuantity]     = useState('0');
   const [saving,       setSaving]       = useState(false);
@@ -156,6 +178,34 @@ export default function InventoryPage() {
     const [[, t], [, at]] = await AsyncStorage.multiGet(['token', 'access_token']);
     tokenRef.current = t || at;
     return tokenRef.current;
+  }, []);
+
+  const getItemImages = useCallback((item) => {
+    const slots = [item.image, item.image2, item.image3];
+    return slots.filter(Boolean);
+  }, []);
+
+  const pickItemImage = useCallback(async (setter, removeSetter) => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      return Alert.alert('Permission Needed', 'Please allow photo library access in Settings.');
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+
+    if (!result.canceled && result.assets?.length > 0) {
+      setter(result.assets[0]);
+      if (removeSetter) removeSetter(false);
+    }
+  }, []);
+
+  const clearItemImage = useCallback((setter, exists, removeSetter) => {
+    setter(null);
+    if (exists && removeSetter) removeSetter(true);
   }, []);
 
   const fetchCreditStatus = useCallback(async () => {
@@ -311,6 +361,12 @@ export default function InventoryPage() {
     setEditPrice(String(selectedItem.price || ''));
     setTrackQuantity(selectedItem.track_quantity || false);
     setQuantity(String(selectedItem.quantity || 0));
+    setEditImage1(selectedItem.image || null);
+    setEditImage2(selectedItem.image2 || null);
+    setEditImage3(selectedItem.image3 || null);
+    setRemoveImage1(false);
+    setRemoveImage2(false);
+    setRemoveImage3(false);
   }, [selectedItem]);
 
   const onRefresh = useCallback(() => {
@@ -372,6 +428,31 @@ export default function InventoryPage() {
       form.append('track_quantity', trackQuantity);
       form.append('quantity', quantity);
 
+      const appendImageField = (fieldName, imageValue, removeFlag) => {
+        if (!imageValue && removeFlag) {
+          form.append(fieldName, '');
+          return;
+        }
+        if (imageValue && imageValue.uri) {
+          const filename = imageValue.uri.split('/').pop() || `${fieldName}.jpg`;
+          const ext = filename.split('.').pop()?.toLowerCase();
+          let mime = 'image/jpeg';
+          if (ext === 'png') mime = 'image/png';
+          if (ext === 'webp') mime = 'image/webp';
+          form.append(fieldName, {
+            uri: imageValue.uri,
+            name: filename,
+            type: mime,
+          });
+        }
+      };
+
+      appendImageField('image', editImage1, removeImage1);
+      if (creditStatus.is_pro) {
+        appendImageField('image2', editImage2, removeImage2);
+        appendImageField('image3', editImage3, removeImage3);
+      }
+
       const res  = await fetch(`${BASE_URL}/api/item/update/${selectedItem.id}/`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
@@ -390,7 +471,15 @@ export default function InventoryPage() {
             else if (qty <= 5) quantity_status = 'low';
             else quantity_status = 'in';
           }
-          return { ...item, name: editName, price: editPrice, quantity: qty, track_quantity: trackQuantity, quantity_status };
+          return {
+            ...item,
+            ...data,
+            name: editName,
+            price: editPrice,
+            quantity: qty,
+            track_quantity: trackQuantity,
+            quantity_status,
+          };
         })
       );
       setModalVisible(false);
@@ -400,7 +489,7 @@ export default function InventoryPage() {
     } finally {
       setSaving(false);
     }
-  }, [selectedItem, editName, editPrice, quantity, trackQuantity, getToken]);
+  }, [selectedItem, editName, editPrice, quantity, trackQuantity, editImage1, editImage2, editImage3, removeImage1, removeImage2, removeImage3, creditStatus.is_pro, getToken]);
 
   const unlockQuantityFeature = useCallback(async () => {
     try {
@@ -568,7 +657,7 @@ export default function InventoryPage() {
                     {/* Product image + name header */}
                     <View style={styles.modalHeader}>
                       <Image
-                        source={{ uri: getImageUrl(selectedItem.image) }}
+                        source={{ uri: getImageUrl(selectedItem.image || selectedItem.image2 || selectedItem.image3 || '') }}
                         style={styles.modalThumb}
                         resizeMode="cover"
                       />
@@ -580,6 +669,40 @@ export default function InventoryPage() {
                         </Text>
                       </View>
                     </View>
+
+                    {creditStatus.is_pro && (
+                      <View style={styles.imageSlotsRow}>
+                        {[
+                          { value: editImage1, label: 'Image 1', removeFlag: removeImage1, setter: setEditImage1, removeSetter: setRemoveImage1 },
+                          { value: editImage2, label: 'Image 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 },
+                          { value: editImage3, label: 'Image 3', removeFlag: removeImage3, setter: setEditImage3, removeSetter: setRemoveImage3 },
+                        ].map((slot, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={styles.imageSlot}
+                            onPress={() => pickItemImage(slot.setter, slot.removeSetter)}
+                            activeOpacity={0.8}
+                          >
+                            {slot.value ? (
+                              <Image source={{ uri: typeof slot.value === 'string' ? getImageUrl(slot.value) : slot.value.uri }} style={styles.imageSlotImg} resizeMode="cover" />
+                            ) : (
+                              <View style={styles.imageSlotPlaceholder}>
+                                <Ionicons name="camera-outline" size={18} color="#2F5D50" />
+                                <Text style={styles.imageSlotLabel}>{slot.label}</Text>
+                              </View>
+                            )}
+                            {slot.value ? (
+                              <TouchableOpacity
+                                style={styles.imageSlotRemove}
+                                onPress={() => clearItemImage(slot.setter, Boolean(slot.value), slot.removeSetter)}
+                              >
+                                <Ionicons name="close-circle" size={18} color="#fff" />
+                              </TouchableOpacity>
+                            ) : null}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
 
                     <View style={styles.divider} />
 
@@ -897,6 +1020,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   modalHeaderText: { flex: 1 },
+  imageSlotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 18,
+  },
+  imageSlot: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+    backgroundColor: '#F7F8FA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageSlotPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: 8,
+  },
+  imageSlotLabel: {
+    fontSize: 10,
+    color: '#4B5563',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  imageSlotImg: {
+    width: '100%',
+    height: '100%',
+  },
+  imageSlotRemove: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbnailRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+  thumbnailImg: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
   modalCategory: {
     fontSize: 9, fontWeight: '800', color: '#2F5D50',
     letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4,
