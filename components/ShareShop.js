@@ -60,6 +60,7 @@ export default function ShareShop({ shop, customStyle }) {
       `\nShop: ${shopName}`,
       address ? `Location: ${address}` : null,
       `Category: ${category}`,
+      `\nView Shop: https://mydukan.online/shop/${shop.id}`,
       `\nDiscover products and connect with local businesses using MyDukan.`,
       `\nDownload MyDukan:`,
       playStoreLink
