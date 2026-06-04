@@ -145,10 +145,10 @@ export default function Profile() {
   const handleShareAppLink = useCallback(async () => {
     try {
       const playStoreLink = 'https://play.google.com/store/apps/details?id=com.mydukan.dukanapp';
-      const message = `🏪 Discover local shops and items instantly with MyDukan!\n\nDownload MyDukan here:\n${playStoreLink}`;
+      const message = `🏪 Discover local shops and items instantly with mydukan!\n\nDownload mydukan here:\n${playStoreLink}`;
       await Share.share({
         message,
-        title: 'Share MyDukan App',
+        title: 'Share mydukan App',
       });
     } catch (error) {
       console.error('[Share App] Share failed:', error);
@@ -281,7 +281,7 @@ export default function Profile() {
               iconColor="#0F5C43"
               iconBg="rgba(14,92,67,0.15)"
               label="Share App Link"
-              sublabel="Share MyDukan app with friends"
+              sublabel="Share mydukan app with friends"
               onPress={handleShareAppLink}
             />
             <View style={s.divider} />
@@ -290,7 +290,7 @@ export default function Profile() {
               iconColor="#2f5d50ff"
               iconBg="rgba(47,93,80,0.15)"
               label="About Us"
-              sublabel="Learn more about MyDukan"
+              sublabel="Learn more about mydukan"
               onPress={() => router.push('/about')}
             />
             <View style={s.divider} />

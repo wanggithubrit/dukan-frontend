@@ -82,9 +82,18 @@ const QRModal = ({ visible, onClose, shop, onDownload, viewRef }) => (
             <Text style={styles.qrTitle}>Scan to visit our shop</Text>
             <Text style={styles.qrShopName}>{shop?.name}</Text>
             <View style={styles.qrBox}>
-              <QRCode value={`https://mydukan.online/shop/${shop?.id}`} size={180} color="#1a1a1a" backgroundColor="#fff" />
+              <QRCode
+                value={`https://mydukan.online/shop/${shop?.id}`}
+                size={180}
+                color="#1a1a1a"
+                backgroundColor="#fff"
+                logo={require('../../assets/images/logo_splash_login.png')}
+                logoSize={45}
+                logoBorderRadius={8}
+                logoBackgroundColor="#fff"
+              />
             </View>
-            <Text style={styles.qrFooter}>Powered by MyDukan · Shop Smart</Text>
+            <Text style={styles.qrFooter}>Make your local shopping easy nextime</Text>
           </View>
         </ViewShot>
         <View style={styles.qrActions}>
@@ -118,7 +127,7 @@ export const startPayment = async () => {
       key: data.key,
       amount: data.amount,
       order_id: data.order_id,
-      name: 'MyDukan',
+      name: 'mydukan',
       prefill: { contact: '9999999999' },
       theme: { color: '#2F5D50' },
       method: { upi: true, card: false, netbanking: false, wallet: false, emi: false, paylater: false },
@@ -207,7 +216,7 @@ export default function MerchantProfile() {
   const shareReferral = async () => {
     try {
       await Share.share({
-        message: `Join MyDukan as a merchant using my code: ${data.referral_code}\n\nBoost your sales today! 🚀`,
+        message: `Join mydukan as a merchant using my code: ${data.referral_code}\n\nBoost your sales today! 🚀`,
       });
     } catch (error) { console.log(error.message); }
   };
@@ -220,12 +229,12 @@ export default function MerchantProfile() {
     });
     const data = await res.json();
     const options = {
-      description: 'MyDukan Pro Plan',
+      description: 'mydukan Pro Plan',
       currency: 'INR',
       key: data.key,
       amount: data.amount,
       order_id: data.order_id,
-      name: 'MyDukan',
+      name: 'mydukan',
       prefill: { email: 'test@mydukan.online', contact: '9999999999' },
       theme: { color: '#2F5D50' },
     };
@@ -395,7 +404,7 @@ export default function MerchantProfile() {
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Support</Text></View>
         <View style={styles.settingsCard}>
           <SupportRow icon="mail-outline" title="Help Desk" subtitle="Get assistance via email" onPress={openEmail} />
-          <SupportRow icon="information-circle-outline" title="About Us" subtitle="Learn more about MyDukan" onPress={() => router.push('/about')} />
+          <SupportRow icon="information-circle-outline" title="About Us" subtitle="Learn more about mydukan" onPress={() => router.push('/about')} />
         </View>
 
       </ScrollView>

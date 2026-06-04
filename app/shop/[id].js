@@ -1045,13 +1045,13 @@ export default function ShopDetail() {
     const address = shop.address || '';
     
     const message = [
-      `🏪 Check out this shop on MyDukan`,
+      `🏪 Check out this shop on mydukan`,
       `\nShop: ${shopName}`,
       `Link: https://mydukan.online/shop/${shop.id}`,
       address ? `Location: ${address}` : null,
       `Category: ${category}`,
-      `\nDiscover products and connect with local businesses using MyDukan.`,
-      `\nDownload MyDukan:`,
+      `\nDiscover products and connect with local businesses using mydukan.`,
+      `\nDownload mydukan:`,
       playStoreLink
     ].filter(Boolean).join('\n');
 
