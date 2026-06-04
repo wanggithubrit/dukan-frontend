@@ -588,7 +588,7 @@ export default function MerchantHome() {
   const [shop, setShop] = useState(null);
   const [posts, setPosts] = useState([]);
   const [banners, setBanners] = useState([]);
-  const [stats, setStats] = useState({ posts: 0, followers: 0 });
+  const [stats, setStats] = useState({ posts: 0, followers: 0, views: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
@@ -736,7 +736,7 @@ export default function MerchantHome() {
         React.startTransition(() => {
           setShop(data.shop);
           setPosts(postsData);
-          setStats({ posts: postsData.length, followers: data.stats?.followers ?? 0 });
+          setStats({ posts: postsData.length, followers: data.stats?.followers ?? 0, views: data.stats?.views ?? 0 });
           setBanners(Array.isArray(bData) ? bData : []);
         });
       }
@@ -1212,6 +1212,8 @@ export default function MerchantHome() {
               <Stat label="Posts" value={stats.posts} icon="images-outline" />
               <View style={styles.statDivider} />
               <Stat label="Followers" value={stats.followers} icon="heart-outline" />
+              <View style={styles.statDivider} />
+              <Stat label="Views" value={stats.views} icon="eye-outline" />
             </View>
 
             {/* ── QUICK ACTIONS ── */}
