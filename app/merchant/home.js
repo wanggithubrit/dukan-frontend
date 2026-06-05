@@ -7,21 +7,21 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  InteractionManager,
-  Linking,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Dimensions,
+    InteractionManager,
+    Linking,
+    Platform,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AdBanner from '../../components/AdBanner';
@@ -124,6 +124,7 @@ const CATEGORY_ICONS = {
 
 const RANGES = [1, 5, 10, 25, 'All'];
 const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium'];
+const PREMIUM_SET = new Set(PREMIUM_PLANS.map((p) => String(p).toLowerCase()));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const getImageUrl = (img) => {
@@ -212,8 +213,10 @@ const byDistance = (a, b) => {
   const distA = toKm(a.distance);
   const distB = toKm(b.distance);
   if (distA !== distB) return distA - distB;
-  const aPremium = a.plan !== 'Free';
-  const bPremium = b.plan !== 'Free';
+  const aPlan = String(a?.plan || '').toLowerCase();
+  const bPlan = String(b?.plan || '').toLowerCase();
+  const aPremium = PREMIUM_SET.has(aPlan);
+  const bPremium = PREMIUM_SET.has(bPlan);
   if (aPremium && !bPremium) return -1;
   if (!aPremium && bPremium) return 1;
   return 0;
@@ -341,7 +344,8 @@ const PostCard = React.memo(({ post, onDelete }) => (
 PostCard.displayName = 'PostCard';
 
 const ShopCard = React.memo(({ item, onPress }) => {
-  const isPremium = PREMIUM_PLANS.includes(item.plan);
+  const planNorm = String(item?.plan || '').toLowerCase();
+  const isPremium = PREMIUM_SET.has(planNorm);
   const catKey = normalizeCatKey(item.category);
   const catColor = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.Others;
   const catIcon = CATEGORY_ICONS[catKey] || 'grid-outline';
@@ -382,8 +386,8 @@ const ShopCard = React.memo(({ item, onPress }) => {
           </View>
 
           {isPremium && (
-            <View style={[styles.premiumBadge, styles.premiumGlow]}>
-              <Ionicons name="star" size={11} color="#FFD700" />
+            <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: C.accent }]}> 
+              <Ionicons name="checkmark" size={11} color="#FFFFFF" />
             </View>
           )}
         </View>
@@ -493,7 +497,8 @@ const ProductCard = React.memo(({ item, onPress }) => {
 ProductCard.displayName = 'ProductCard';
 
 const OpenNowCard = React.memo(({ item, onPress }) => {
-  const isPremium = PREMIUM_PLANS.includes(item.plan);
+  const planNorm = String(item?.plan || '').toLowerCase();
+  const isPremium = PREMIUM_SET.has(planNorm);
   const catKey = normalizeCatKey(item.category);
   const catColor = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.Others;
   const dist = formatDist(item.distance);
@@ -1032,6 +1037,11 @@ export default function MerchantHome() {
       return true;
     });
     filtered.sort(byDistance);
+    if (__DEV__) {
+      try {
+        console.log('merchant filtered sample', filtered.slice(0,10).map(s => ({ id: s.id, distance: s.distance, plan: s.plan })));
+      } catch (e) {}
+    }
 
     // Product search
     if (query) {

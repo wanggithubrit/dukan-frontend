@@ -1,20 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image } from 'expo-image';
 import {
   ActivityIndicator,
   Animated,
   Linking,
   Platform,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  Share
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
@@ -348,14 +348,14 @@ export default function Profile() {
             <TouchableOpacity
               style={[s.socialCard, { marginRight: 12 }]}
               activeOpacity={0.85}
-              onPress={() => Linking.openURL('https://www.instagram.com/dukand.service/')}
+              onPress={() => Linking.openURL('https://www.instagram.com/mydukan.online/')}
             >
               <View style={[s.socialIcon, { backgroundColor: '#E1306C' }]}>
                 <Ionicons name="logo-instagram" size={19} color="#fff" />
               </View>
               <View>
                 <Text style={s.socialName}>Instagram</Text>
-                <Text style={s.socialHandle}>@dukand.service</Text>
+                <Text style={s.socialHandle}>@mydukan.online</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity

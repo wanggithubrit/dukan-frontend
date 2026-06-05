@@ -160,7 +160,7 @@ function useShopData(id) {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [shopRes, favRes] = await Promise.all([
-        fetch(shopUrl, { signal: controller.signal }),
+        fetch(shopUrl, { headers, signal: controller.signal }),
         fetch(`${BASE_URL}/api/favorites/`, { headers, signal: controller.signal }),
       ]);
 

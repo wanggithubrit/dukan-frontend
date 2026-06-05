@@ -1,24 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image } from 'expo-image';
 import {
-    Animated,
-    Dimensions,
-    Linking,
-    Platform,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Animated,
+  Dimensions,
+  Linking,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -136,6 +136,7 @@ const CATEGORY_ICONS = {
 
 const RANGES = [1, 5, 10, 25, 'All'];
 const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium'];
+const PREMIUM_SET = new Set(PREMIUM_PLANS.map((p) => String(p).toLowerCase()));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -222,8 +223,11 @@ const byDistance = (a, b) => {
   const distA = toKm(a.distance);
   const distB = toKm(b.distance);
   if (distA !== distB) return distA - distB;
-  const aPremium = a.plan !== 'Free';
-  const bPremium = b.plan !== 'Free';
+  // For equal distances, prefer paid/pro plans (explicit list) over Free
+  const aPlan = String(a?.plan || '').toLowerCase();
+  const bPlan = String(b?.plan || '').toLowerCase();
+  const aPremium = PREMIUM_SET.has(aPlan);
+  const bPremium = PREMIUM_SET.has(bPlan);
   if (aPremium && !bPremium) return -1;
   if (!aPremium && bPremium) return 1;
   return 0;
@@ -309,7 +313,8 @@ const Sparkle = ({ size = 16, color = C.accent }) => (
 // ═══════════════════════════════════════════════════════════════════════════
 
 const ShopCard = React.memo(({ item, onPress }) => {
-  const isPremium = PREMIUM_PLANS.includes(item.plan);
+  const planNorm = String(item?.plan || '').toLowerCase();
+  const isPremium = PREMIUM_SET.has(planNorm);
   const catKey = normalizeCatKey(item.category);
   const catColor = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.Others;
   const catIcon = CATEGORY_ICONS[catKey] || 'grid-outline';
@@ -354,8 +359,8 @@ const ShopCard = React.memo(({ item, onPress }) => {
 
           {/* Premium Badge */}
           {isPremium && (
-            <View style={[s.premiumBadge, s.premiumGlow]}>
-              <Ionicons name="star" size={11} color="#FFD700" />
+            <View style={[s.premiumBadge, s.premiumGlow, { backgroundColor: C.accent }]}> 
+              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
             </View>
           )}
         </View>
@@ -477,7 +482,8 @@ ProductCard.displayName = 'ProductCard';
 // ═══════════════════════════════════════════════════════════════════════════
 
 const OpenNowCard = React.memo(({ item, onPress }) => {
-  const isPremium = PREMIUM_PLANS.includes(item.plan);
+  const planNorm = String(item?.plan || '').toLowerCase();
+  const isPremium = PREMIUM_SET.has(planNorm);
   const catKey = normalizeCatKey(item.category);
   const catColor = CATEGORY_COLORS[catKey] || CATEGORY_COLORS.Others;
   const dist = formatDist(item.distance);
@@ -511,8 +517,8 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
 
           {/* Premium Badge */}
           {isPremium && (
-            <View style={[s.premiumBadge, s.premiumGlow]}>
-              <Ionicons name="star" size={9} color="#FFD700" />
+            <View style={[s.premiumBadge, s.premiumGlow, { backgroundColor: C.accent }]}> 
+              <Ionicons name="checkmark" size={10} color="#FFFFFF" />
             </View>
           )}
         </View>
@@ -877,6 +883,11 @@ export default function Home() {
       return true;
     });
     filtered.sort(byDistance);
+    if (__DEV__) {
+      try {
+        console.log('filteredShops sample', filtered.slice(0, 10).map(s => ({ id: s.id, distance: s.distance, plan: s.plan })));
+      } catch (e) {}
+    }
 
     // Product search
     if (query) {
@@ -1857,12 +1868,15 @@ const s = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    width: 28,
+    minWidth: 28,
     height: 28,
-    borderRadius: 14,
+    paddingHorizontal: 6,
+    borderRadius: 16,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
 
   premiumGlow: {
@@ -1870,6 +1884,20 @@ const s = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 4,
+  },
+
+  premiumBadgeText: {
+    color: '#FFF8DC',
+    fontSize: 11,
+    fontWeight: '800',
+    marginLeft: 4,
+  },
+
+  premiumBadgeTextSmall: {
+    color: '#FFF8DC',
+    fontSize: 10,
+    fontWeight: '700',
+    marginLeft: 4,
   },
 
   priceBadge: {

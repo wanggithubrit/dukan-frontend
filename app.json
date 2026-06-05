@@ -3,40 +3,31 @@
     "name": "MyDukan",
     "slug": "dukan",
     "version": "1.0.0",
-    "newArchEnabled": false,
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-
     "scheme": "dukan",
-
     "userInterfaceStyle": "automatic",
-
     "splash": {
       "image": "./assets/images/logo_round.png",
       "resizeMode": "contain",
       "backgroundColor": "#0F2118"
     },
-
     "android": {
       "versionCode": 22,
-
       "package": "com.mydukan.dukanapp",
-
-      "permissions": ["SCHEDULE_EXACT_ALARM"],
-
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM"
+      ],
       "googleServicesFile": "./google-services.json",
-
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSy..."
         }
       },
-
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": true,
-
           "data": [
             {
               "scheme": "https",
@@ -44,33 +35,31 @@
               "pathPrefix": "/shop"
             }
           ],
-
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
-
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-
       "predictiveBackGestureEnabled": false
     },
-
     "ios": {
       "bundleIdentifier": "com.mydukan.dukanapp",
       "icon": "./assets/images/icon.png",
-      "associatedDomains": ["applinks:mydukan.online"]
+      "associatedDomains": [
+        "applinks:mydukan.online"
+      ]
     },
-
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
-
       [
         "expo-splash-screen",
         {
@@ -78,7 +67,6 @@
           "imageWidth": 160,
           "resizeMode": "contain",
           "backgroundColor": "#0F2118",
-
           "dark": {
             "image": "./assets/images/logo_round.png",
             "imageWidth": 160,
@@ -87,9 +75,7 @@
           }
         }
       ],
-
       "expo-notifications",
-
       [
         "react-native-google-mobile-ads",
         {
@@ -98,7 +84,6 @@
           "userTrackingUsageDescription": "Used to serve ads and measure ad performance."
         }
       ],
-
       "expo-sharing",
       "expo-font",
       "expo-image",
@@ -110,21 +95,19 @@
             "extraProguardRules": "-keep class com.swmansion.reanimated.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }\n-keep class com.razorpay.** { *; }\n-dontwarn com.razorpay.**"
           }
         }
-      ]
+      ],
+      "expo-asset"
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
-
     "extra": {
       "router": {},
       "eas": {
         "projectId": "c07a1f68-a920-499a-8b5d-d095bd39c2a5"
       }
     },
-
     "owner": "penwang"
   }
 }
