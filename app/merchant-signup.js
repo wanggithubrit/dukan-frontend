@@ -422,7 +422,7 @@ export default function MerchantSignup() {
                   <View style={styles.otpHintRow}>
                     <Ionicons name="information-circle-outline" size={14} color="#064E3B" />
                     <Text style={styles.otpHint}>
-                      Enter the OTP sent to <Text style={{ fontWeight: '700' }}>{form.email}</Text>
+                      Enter the OTP sent to <Text style={{ fontWeight: '700' }}>{form.email}</Text>. Please wait up to 10 seconds for the email to arrive.
                     </Text>
                   </View>
                   <View style={styles.otpRow}>

@@ -359,8 +359,8 @@ const ShopCard = React.memo(({ item, onPress }) => {
 
           {/* Premium Badge */}
           {isPremium && (
-            <View style={[s.premiumBadge, s.premiumGlow, { backgroundColor: C.accent }]}> 
-              <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            <View style={[s.premiumBadge, s.premiumGlow, { backgroundColor: '#EAB308' }]}> 
+              <Ionicons name="star" size={12} color="#FFFFFF" />
             </View>
           )}
         </View>
@@ -517,8 +517,8 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
 
           {/* Premium Badge */}
           {isPremium && (
-            <View style={[s.premiumBadge, s.premiumGlow, { backgroundColor: C.accent }]}> 
-              <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+            <View style={[s.premiumBadge, s.premiumGlow, { backgroundColor: '#EAB308' }]}> 
+              <Ionicons name="star" size={10} color="#FFFFFF" />
             </View>
           )}
         </View>
