@@ -11,6 +11,7 @@ import {
   AppState,
   FlatList,
   Platform,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -133,6 +134,7 @@ export default function Favorites() {
 
   const [shops,   setShops]   = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Track whether this screen is currently focused
   const isFocused    = useRef(false);
@@ -143,6 +145,7 @@ export default function Favorites() {
 const fetchFavorites = useCallback(async (showSpinner = false) => {
   try {
     if (showSpinner) setLoading(true);
+    else setRefreshing(true);
 
     const [[, t], [, at], [, lat], [, lon]] =
      await AsyncStorage.multiGet(['token', 'access_token', 'lat', 'lon']);
@@ -165,6 +168,7 @@ const fetchFavorites = useCallback(async (showSpinner = false) => {
     console.log("FAVORITES ERROR:", e);
   } finally {
     setLoading(false);
+    setRefreshing(false);
   }
 }, []);
 
@@ -303,6 +307,13 @@ const removeFavorite = useCallback(async (shop_id) => {
         contentContainerStyle={s.list}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<EmptyState />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchFavorites(false)}
+            tintColor={C.primary}
+          />
+        }
       />
 
       {/* ── BOTTOM NAV (matches Home page) ─────────────────────────────── */}
