@@ -767,10 +767,16 @@ export default function MerchantHome() {
         lat = r[0][1];
         lon = r[1][1];
       }
-      if (!lat || !lon) return;
 
       const rangeParam = range === 'All' ? '' : `&range=${range}`;
-      const res = await fetch(`${BASE_URL}/api/shops/?lat=${lat}&lon=${lon}${rangeParam}`);
+      let url = `${BASE_URL}/api/shops/`;
+      if (lat && lon) {
+        url += `?lat=${lat}&lon=${lon}${rangeParam}`;
+      } else if (rangeParam) {
+        url += `?${rangeParam.replace('&', '')}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
       if (!Array.isArray(data)) return;
@@ -808,6 +814,8 @@ export default function MerchantHome() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setCity('Location Off');
+        fetchShops(null, null);
+        fetchFeaturedBanners(null, null);
         return;
       }
 
@@ -815,6 +823,8 @@ export default function MerchantHome() {
       const servicesEnabled = await Location.hasServicesEnabledAsync();
       if (!servicesEnabled) {
         setCity('GPS Disabled');
+        fetchShops(null, null);
+        fetchFeaturedBanners(null, null);
         return;
       }
 
