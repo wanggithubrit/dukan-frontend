@@ -844,4 +844,3 @@ const getStyles = (C) => StyleSheet.create({
      marginBottom: 6,
    },
 });
-};
