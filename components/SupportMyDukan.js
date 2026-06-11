@@ -53,7 +53,7 @@ export default function SupportMyDukan({ platform = 'customer' }) {
 
       const options = {
         description: 'Voluntary Support contribution',
-        image: 'https://i.imgur.com/3g7URHv.png',
+        image: 'https://mydukan.online/logo_round.png',
         currency: 'INR',
         key: orderData.key,
         amount: orderData.amount,
