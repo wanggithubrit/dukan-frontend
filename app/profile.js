@@ -214,7 +214,7 @@ export default function Profile() {
   if (loading) {
     return (
       <View style={s.loader}>
-        <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <ActivityIndicator size="large" color={C.accent} />
       </View>
     );
@@ -224,7 +224,7 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <Animated.ScrollView
         style={{ opacity: fadeAnim }}
@@ -514,8 +514,8 @@ export default function Profile() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const getStyles = (C) => StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: C.bg },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+  safe:   { flex: 1, backgroundColor: '#FFFFFF' },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
   scroll: { paddingBottom: 140 },
 
   // Top bar
