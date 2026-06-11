@@ -375,43 +375,7 @@ export default function Profile() {
           </View>
         </View>
 
-        {/* APPEARANCE MENU */}
-        <View style={s.section}>
-          <Text style={s.sectionLabel}>APPEARANCE</Text>
-          <View style={s.card}>
-            <View style={{ padding: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: C.textMid, marginBottom: 12 }}>Choose Theme Accent Color</Text>
-              <View style={{ flexDirection: 'row', gap: 16 }}>
-                {Object.keys(THEMES).map((key) => {
-                  const t = THEMES[key];
-                  const active = themeKey === key;
-                  return (
-                    <TouchableOpacity
-                      key={key}
-                      style={{
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        borderWidth: 3,
-                        borderColor: active ? C.primary : 'transparent',
-                        backgroundColor: t.primary,
-                        shadowColor: t.primary,
-                        shadowOpacity: active ? 0.3 : 0.1,
-                        shadowRadius: 6,
-                        elevation: 3,
-                      }}
-                      onPress={() => setTheme(key)}
-                    >
-                      {active && <Ionicons name="checkmark" size={18} color="#fff" />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-        </View>
+
 
         {/* Delete Account Modal */}
         <Modal

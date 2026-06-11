@@ -5,6 +5,8 @@ import { preloadAppOpenAd, showAppOpenAdIfReady } from '../utils/appOpenAd';
 
 // AdMob initialization
 let isMobileAdsInitialized = false;
+let hasAppOpenAdShown = false;
+
 const initializeMobileAds = async () => {
   if (isMobileAdsInitialized) return;
   try {
@@ -15,10 +17,14 @@ const initializeMobileAds = async () => {
       isMobileAdsInitialized = true;
       // Preload App Open Ad immediately
       preloadAppOpenAd();
-      // Show App Open Ad after a brief startup delay (1.5 seconds)
-      setTimeout(() => {
-        showAppOpenAdIfReady();
-      }, 1500);
+      
+      // Show App Open Ad after a brief startup delay (1.5 seconds) exactly once
+      if (!hasAppOpenAdShown) {
+        hasAppOpenAdShown = true;
+        setTimeout(() => {
+          showAppOpenAdIfReady();
+        }, 1500);
+      }
     }
   } catch (_e) {
     console.debug('[layout] AdMob init failed:', _e.message);
@@ -26,27 +32,9 @@ const initializeMobileAds = async () => {
 };
 
 export default function Layout() {
-  const appState = useRef(AppState.currentState);
-
   useEffect(() => {
-    // 1. Initialize AdMob and trigger cold-start ad
+    // Initialize AdMob and trigger cold-start ad
     initializeMobileAds();
-
-    // 2. Listen to AppState transitions for hot-starts
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-        // App returned from background to foreground - show App Open Ad
-        showAppOpenAdIfReady();
-      }
-      appState.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-    };
   }, []);
 
   return <Slot />;
