@@ -803,9 +803,8 @@ const ShopListHeader = memo(({
             <Text style={s.timingText}>
               Hours: <Text style={s.timingHours}>{formatTime(shop.opening_time)} - {formatTime(shop.closing_time)}</Text>
               <Text style={{ color: C.textLight }}>  ·  </Text>
-              {shop.is_open ? 'Closes at ' : 'Opens at '}
-              <Text style={s.timingHours}>
-                {shop.is_open ? formatTime(shop.closing_time) : formatTime(shop.opening_time)}
+              <Text style={[s.timingHours, { color: shop.is_open ? C.success : C.error }]}>
+                {shop.is_open ? 'Open Now' : 'Closed'}
               </Text>
             </Text>
           </View>
