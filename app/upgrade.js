@@ -22,34 +22,46 @@ export default function Upgrade() {
     const options = {
       description: 'mydukan Pro Plan',
       currency: 'INR',
-      key: 'YOUR_KEY_ID',
+      key: data.key,
       amount: data.amount,
       name: 'mydukan',
-      order_id: data.id,
+      order_id: data.order_id,
       prefill: {
-        email: '',
-        contact: '',
+        email: 'user@mydukan.com',
+        contact: '9999999999',
       },
       theme: { color: '#2F5D50' },
+      method: { upi: true, card: false, netbanking: false, wallet: false, emi: false, paylater: false },
+      upi: { flow: 'intent' }
     };
 
-  const _Razorpay = require('react-native-razorpay');
-  const RazorpayCheckout = _Razorpay && (_Razorpay.default || _Razorpay);
+    const _Razorpay = require('react-native-razorpay');
+    const RazorpayCheckout = _Razorpay && (_Razorpay.default || _Razorpay);
 
     RazorpayCheckout.open(options)
       .then(async (payment) => {
-
         // 3️⃣ Verify payment
-        await fetch(`${BASE_URL}/api/payment/verify/`, {
+        const verifyRes = await fetch(`${BASE_URL}/api/payment/verify/`, {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({
+            order_id: payment.razorpay_order_id,
+            payment_id: payment.razorpay_payment_id,
+            signature: payment.razorpay_signature,
+          }),
         });
 
-        Alert.alert('Success 🎉', 'You are now Pro!');
+        if (verifyRes.ok) {
+          Alert.alert('Success 🎉', 'You are now Pro!');
+        } else {
+          Alert.alert('Verification Failed', 'Payment could not be verified.');
+        }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.log('Razorpay payment error:', err);
         Alert.alert('Payment Failed');
       });
   };

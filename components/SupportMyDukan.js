@@ -60,11 +60,13 @@ export default function SupportMyDukan({ platform = 'customer' }) {
         name: 'Support mydukan',
         order_id: orderData.order_id,
         prefill: {
-          email: '',
-          contact: '',
-          name: '',
+          email: 'user@mydukan.com',
+          contact: '9999999999',
+          name: 'mydukan Supporter',
         },
         theme: { color: '#0E5C42' },
+        method: { upi: true, card: false, netbanking: false, wallet: false, emi: false, paylater: false },
+        upi: { flow: 'intent' }
       };
 
       RazorpayCheckout.open(options)
