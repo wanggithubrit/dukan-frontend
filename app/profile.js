@@ -69,7 +69,7 @@ function MenuRow({ icon, iconBg, iconColor, label, sublabel, onPress, last, righ
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={1}
-        style={[s.menuRow, last && { borderBottomWidth: 0 }]}
+        style={s.menuRow}
       >
         <View style={[s.menuIconBox, { backgroundColor: iconBg }]}>
           <Ionicons name={icon} size={17} color={iconColor} />
@@ -608,7 +608,6 @@ const getStyles = (C) => StyleSheet.create({
   menuRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 18, paddingVertical: 15,
-    borderBottomWidth: 1, borderBottomColor: C.cardBorder,
   },
   menuIconBox: {
     width: 36, height: 36, borderRadius: 11,
