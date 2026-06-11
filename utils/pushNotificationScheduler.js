@@ -17,22 +17,8 @@ export async function setupNotificationCategories() {
     await Notifications.setNotificationCategoryAsync('shop_opening', [
       {
         identifier: 'OPEN_SHOP',
+        buttonTitle: 'Open Shop',
         buttonTitleShort: 'Open Shop',
-        options: { isDestructive: false, isAuthenticationRequired: false },
-      },
-      {
-        identifier: 'SNOOZE_5',
-        buttonTitleShort: 'Snooze 5m',
-        options: { isDestructive: false, isAuthenticationRequired: false },
-      },
-      {
-        identifier: 'SNOOZE_10',
-        buttonTitleShort: 'Snooze 10m',
-        options: { isDestructive: false, isAuthenticationRequired: false },
-      },
-      {
-        identifier: 'SNOOZE_30',
-        buttonTitleShort: 'Snooze 30m',
         options: { isDestructive: false, isAuthenticationRequired: false },
       },
     ]);
@@ -40,28 +26,9 @@ export async function setupNotificationCategories() {
     await Notifications.setNotificationCategoryAsync('shop_closing', [
       {
         identifier: 'CLOSE_SHOP',
+        buttonTitle: 'Close Shop',
         buttonTitleShort: 'Close Shop',
         options: { isDestructive: true, isAuthenticationRequired: false },
-      },
-      {
-        identifier: 'KEEP_OPEN',
-        buttonTitleShort: 'Keep Open',
-        options: { isDestructive: false, isAuthenticationRequired: false },
-      },
-      {
-        identifier: 'SNOOZE_5',
-        buttonTitleShort: 'Snooze 5m',
-        options: { isDestructive: false, isAuthenticationRequired: false },
-      },
-      {
-        identifier: 'SNOOZE_10',
-        buttonTitleShort: 'Snooze 10m',
-        options: { isDestructive: false, isAuthenticationRequired: false },
-      },
-      {
-        identifier: 'SNOOZE_30',
-        buttonTitleShort: 'Snooze 30m',
-        options: { isDestructive: false, isAuthenticationRequired: false },
       },
     ]);
   } catch (err) {
@@ -78,6 +45,20 @@ function parseTime(timeStr) {
   const minute = parseInt(parts[1], 10);
   if (isNaN(hour) || isNaN(minute)) return null;
   return { hour, minute };
+}
+
+// Subtract 30 seconds from { hour, minute } for a 30s advance notification trigger
+function getAdvanceTrigger(hour, minute) {
+  let h = hour;
+  let m = minute - 1;
+  if (m < 0) {
+    m = 59;
+    h = h - 1;
+    if (h < 0) {
+      h = 23;
+    }
+  }
+  return { hour: h, minute: m, second: 30 };
 }
 
 // Main scheduler function
@@ -118,10 +99,11 @@ export async function scheduleShopReminders(shop) {
     // Uses type: 'calendar' with repeats: true — the correct way to fire at a fixed
     // time every day in expo-notifications. type: 'daily' does NOT exist.
     if (openTime) {
+      const trigger = getAdvanceTrigger(openTime.hour, openTime.minute);
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '⏰ Time to Open Your Shop',
-          body: 'Your scheduled opening time has arrived.',
+          title: '⏰ Shop Opened Automatically',
+          body: 'Your scheduled opening time has arrived. Your shop is now Open.',
           categoryIdentifier: 'shop_opening',
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
@@ -129,8 +111,9 @@ export async function scheduleShopReminders(shop) {
         },
         trigger: {
           type: 'daily',
-          hour: openTime.hour,
-          minute: openTime.minute,
+          hour: trigger.hour,
+          minute: trigger.minute,
+          second: trigger.second,
           repeats: true,
         },
       });
@@ -138,10 +121,11 @@ export async function scheduleShopReminders(shop) {
 
     // 4. Schedule daily closing notification
     if (closeTime) {
+      const trigger = getAdvanceTrigger(closeTime.hour, closeTime.minute);
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🌙 Time to Close Your Shop',
-          body: 'Your scheduled closing time has arrived.',
+          title: '🌙 Shop Closed Automatically',
+          body: 'Your scheduled closing time has arrived. Your shop is now Closed.',
           categoryIdentifier: 'shop_closing',
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
@@ -149,8 +133,9 @@ export async function scheduleShopReminders(shop) {
         },
         trigger: {
           type: 'daily',
-          hour: closeTime.hour,
-          minute: closeTime.minute,
+          hour: trigger.hour,
+          minute: trigger.minute,
+          second: trigger.second,
           repeats: true,
         },
       });
@@ -162,7 +147,6 @@ export async function scheduleShopReminders(shop) {
         title: '🔔 Reminders Configured!',
         body: `Auto-reminders enabled. We'll alert you at your scheduled times (${shop.opening_time || 'N/A'} & ${shop.closing_time || 'N/A'}).`,
         sound: true,
-        categoryIdentifier: 'shop_opening',
         channelId: 'default',
       },
       trigger: {

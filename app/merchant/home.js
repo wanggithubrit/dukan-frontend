@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AppUpdateModal from '../../components/AppUpdateModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
@@ -386,8 +387,8 @@ const ShopCard = React.memo(({ item, onPress }) => {
           </View>
 
           {isPremium && (
-            <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: C.accent }]}> 
-              <Ionicons name="checkmark" size={11} color="#FFFFFF" />
+            <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: '#EAB308' }]}> 
+              <Ionicons name="star" size={11} color="#FFFFFF" />
             </View>
           )}
         </View>
@@ -530,8 +531,8 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
           </View>
 
           {isPremium && (
-            <View style={[styles.premiumBadge, styles.premiumGlow]}>
-              <Ionicons name="star" size={9} color="#FFD700" />
+            <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: '#EAB308' }]}> 
+              <Ionicons name="star" size={10} color="#FFFFFF" />
             </View>
           )}
         </View>
@@ -680,7 +681,7 @@ export default function MerchantHome() {
             });
             const data = await res.json();
             if (res.ok) {
-              Alert.alert('Congratulations! 🎉', 'You watched the ad and earned 1 Credit.');
+              Alert.alert('Congratulations! 🎉', 'You watched the ad and earned 0.5 Credits.');
               fetchCreditStatus();
             } else {
               Alert.alert('Error', data.error || 'Failed to claim reward');
@@ -730,7 +731,7 @@ export default function MerchantHome() {
         fetch(`${BASE_URL}/api/merchant/dashboard/${userId}/`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${BASE_URL}/api/merchant/banners/`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-      if (dashRes.status === 401 || dashRes.status === 404 || dashRes.status === 500) {
+      if (dashRes.status === 401) {
         await AsyncStorage.multiRemove(['token', 'user_id', 'user_role']);
         router.replace('/login');
         return;
@@ -754,7 +755,7 @@ export default function MerchantHome() {
       if (!silent) { setLoading(false); setRefreshing(false); }
       else { setLoading(false); }
     }
-  }, [router, fetchCreditStatus]);
+  }, [fetchCreditStatus]);
 
   // Fetch Nearby Shops for Marketplace
   const fetchShops = useCallback(async (latArg, lonArg) => {
@@ -810,9 +811,25 @@ export default function MerchantHome() {
         return;
       }
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      // GPS Services enabled check
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        setCity('GPS Disabled');
+        return;
+      }
+
+      // Try last known position fallback for weak signal
+      let loc = null;
+      try {
+        loc = await Location.getLastKnownPositionAsync({});
+      } catch (e) {}
+
+      if (!loc) {
+        loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      }
+
       const { latitude, longitude } = loc.coords;
 
       await AsyncStorage.multiSet([
@@ -934,7 +951,7 @@ export default function MerchantHome() {
         }
       });
       return () => { task.cancel(); stopPolling(); };
-    }, [fetchData, startPolling, stopPolling, triggerAction, router])
+    }, [fetchData, startPolling, stopPolling, triggerAction])
   );
 
   const onRefresh = useCallback(async () => {
@@ -1125,7 +1142,14 @@ export default function MerchantHome() {
                     <Text style={styles.shopAvatarText}>{shop.name?.[0]?.toUpperCase()}</Text>
                   </View>
                   <View style={styles.shopInfo}>
-                    <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
+                      {PREMIUM_SET.has(String(shop?.plan || '').toLowerCase()) && (
+                        <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: '#EAB308', position: 'relative', top: 0, right: 0, width: 20, height: 20, borderRadius: 10 }]}> 
+                          <Ionicons name="star" size={9} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </View>
                     <View style={styles.statusRow}>
                       <View style={[styles.statusPulse, { backgroundColor: shop.is_open ? '#10B981' : '#D1D5DB' }]} />
                       <Text style={[styles.statusText, { color: shop.is_open ? '#059669' : '#9CA3AF' }]}>
@@ -1191,7 +1215,7 @@ export default function MerchantHome() {
                     activeOpacity={0.8}
                   >
                     <Ionicons name="play-circle-outline" size={14} color="#fff" />
-                    <Text style={styles.adBtnText}>{adLoaded ? 'Watch Ad (+1 Cr)' : 'Loading Ad...'}</Text>
+                    <Text style={styles.adBtnText}>{adLoaded ? 'Watch Ad (+0.5 Cr)' : 'Loading Ad...'}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1533,7 +1557,7 @@ export default function MerchantHome() {
                           />
                           <View style={{ gap: 4 }}>
                             <Text style={styles.bannerEyebrowMarket}>
-                              {b.small_text || 'MyDukan'}
+                              {b.small_text || 'mydukan'}
                             </Text>
                             <Text style={styles.bannerTitleMarket}>
                               {b.title || 'Save your time'}
@@ -1674,6 +1698,7 @@ export default function MerchantHome() {
         </TouchableOpacity>
         <NavBtn icon="person-outline" label="Profile" onPress={() => router.push('/merchant/profile')} />
       </View>
+      <AppUpdateModal />
     </SafeAreaView>
   );
 }

@@ -4,6 +4,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { compressImage, formatBytes } from '../../utils/imageCompressor';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -26,6 +27,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -257,6 +259,7 @@ export default function CreatePost() {
   const [image2,  setImage2]    = useState(null);
   const [image3,  setImage3]    = useState(null);
   const [loading, setLoading]   = useState(false);
+  const [notifyCustomers, setNotifyCustomers] = useState(true);
   const [planData, setPlanData] = useState({ plan: null, stats: null, credits: null });
 
   const [form, dispatch] = useReducer(formReducer, initialForm);
@@ -388,18 +391,32 @@ export default function CreatePost() {
           if (!perm.granted)
             return Alert.alert('Permission Needed', 'Please allow camera access in Settings.');
           const result = await ImagePicker.launchCameraAsync({
-            quality: 0.85, allowsEditing: true, aspect: [4, 3],
+            quality: 1.0, allowsEditing: true, aspect: [4, 3],
           });
-          if (!result.canceled && result.assets?.length > 0) setImageFn(result.assets[0]);
+          if (!result.canceled && result.assets?.length > 0) {
+            try {
+              const compressed = await compressImage(result.assets[0].uri);
+              setImageFn(compressed);
+            } catch (err) {
+              Alert.alert('Compression Error', 'Could not compress camera photo.');
+            }
+          }
         },
       },
       {
         text: '🖼️  Photo Gallery',
         onPress: async () => {
           const result = await ImagePicker.launchImageLibraryAsync({
-            quality: 0.85, allowsEditing: true, aspect: [4, 3],
+            quality: 1.0, allowsEditing: true, aspect: [4, 3],
           });
-          if (!result.canceled && result.assets?.length > 0) setImageFn(result.assets[0]);
+          if (!result.canceled && result.assets?.length > 0) {
+            try {
+              const compressed = await compressImage(result.assets[0].uri);
+              setImageFn(compressed);
+            } catch (err) {
+              Alert.alert('Compression Error', 'Could not compress selected image.');
+            }
+          }
         },
       },
       { text: 'Cancel', style: 'cancel' },
@@ -417,6 +434,7 @@ export default function CreatePost() {
     setImage(null);
     setImage2(null);
     setImage3(null);
+    setNotifyCustomers(true);
     dispatch({ type: 'RESET' });
   }, []);
 
@@ -494,6 +512,7 @@ console.log('UPLOAD TOKEN:', token);
       if (mode === 'item') {
         fd.append('name', form.name.trim());
         if (form.price) fd.append('price', form.price);
+        fd.append('notify_customers', notifyCustomers ? 'true' : 'false');
       }
       if (mode === 'offer') {
         if (form.discount) fd.append('discount', form.discount);
@@ -650,68 +669,91 @@ console.log('UPLOAD TOKEN:', token);
                 </View>
 
                 {mode === 'item' && credits?.is_pro ? (
-                  <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'space-between' }}>
-                    {[
-                      { img: image, set: setImage, rem: () => setImage(null), label: 'Image 1' },
-                      { img: image2, set: setImage2, rem: () => setImage2(null), label: 'Image 2' },
-                      { img: image3, set: setImage3, rem: () => setImage3(null), label: 'Image 3' }
-                    ].map((slot, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[styles.imagePicker, { flex: 1, height: 110, marginHorizontal: 2 }]}
-                        onPress={() => pickImageIndexed(slot.set)}
-                        activeOpacity={0.82}
-                      >
-                        {slot.img ? (
-                          <View style={{ width: '100%', height: '100%' }}>
-                            <Image
-                              source={{ uri: slot.img.uri }}
-                              style={{ width: '100%', height: '100%', borderRadius: 12 }}
-                              fadeDuration={0}
-                            />
-                            <TouchableOpacity
-                              style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(239, 68, 68, 0.9)', borderRadius: 12, padding: 4 }}
-                              onPress={slot.rem}
-                            >
-                              <Ionicons name="trash-outline" size={12} color="#fff" />
-                            </TouchableOpacity>
-                          </View>
-                        ) : (
-                          <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-                            <Ionicons name="camera-outline" size={20} color={C.accent} />
-                            <Text style={{ fontSize: 10, fontWeight: '600', color: C.accent, marginTop: 4 }}>{slot.label}</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                  <View>
+                    <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'space-between' }}>
+                      {[
+                        { img: image, set: setImage, rem: () => setImage(null), label: 'Image 1' },
+                        { img: image2, set: setImage2, rem: () => setImage2(null), label: 'Image 2' },
+                        { img: image3, set: setImage3, rem: () => setImage3(null), label: 'Image 3' }
+                      ].map((slot, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[styles.imagePicker, { flex: 1, height: 110, marginHorizontal: 2 }]}
+                          onPress={() => pickImageIndexed(slot.set)}
+                          activeOpacity={0.82}
+                        >
+                          {slot.img ? (
+                            <View style={{ width: '100%', height: '100%' }}>
+                              <Image
+                                source={{ uri: slot.img.uri }}
+                                style={{ width: '100%', height: '100%', borderRadius: 12 }}
+                                fadeDuration={0}
+                              />
+                              <TouchableOpacity
+                                style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(239, 68, 68, 0.9)', borderRadius: 12, padding: 4 }}
+                                onPress={slot.rem}
+                              >
+                                <Ionicons name="trash-outline" size={12} color="#fff" />
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                              <Ionicons name="camera-outline" size={20} color={C.accent} />
+                              <Text style={{ fontSize: 10, fontWeight: '600', color: C.accent, marginTop: 4 }}>{slot.label}</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {/* Compression stats for multi-images */}
+                    <View style={{ marginTop: 8 }}>
+                      {[image, image2, image3].map((img, idx) => {
+                        if (!img || img.originalSize === undefined) return null;
+                        return (
+                          <Text key={idx} style={styles.compressionStatsTextMini}>
+                            Image {idx + 1}: {formatBytes(img.originalSize)} → {formatBytes(img.compressedSize)} (-{img.savedPercent}% saved)
+                          </Text>
+                        );
+                      })}
+                    </View>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    style={styles.imagePicker}
-                    onPress={() => pickImageIndexed(setImage)}
-                    activeOpacity={0.82}
-                  >
-                    {image ? (
-                      <View>
-                        <Image
-                          source={{ uri: image.uri }}
-                          style={styles.imagePreview}
-                          fadeDuration={0}
-                        />
-                        <View style={styles.imageOverlay}>
-                          <TouchableOpacity style={styles.imageChangeBtn} onPress={() => pickImageIndexed(setImage)}>
-                            <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
-                            <Text style={styles.imageChangeBtnText}>Change</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
-                            <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                          </TouchableOpacity>
+                  <View>
+                    <TouchableOpacity
+                      style={styles.imagePicker}
+                      onPress={() => pickImageIndexed(setImage)}
+                      activeOpacity={0.82}
+                    >
+                      {image ? (
+                        <View>
+                          <Image
+                            source={{ uri: image.uri }}
+                            style={styles.imagePreview}
+                            fadeDuration={0}
+                          />
+                          <View style={styles.imageOverlay}>
+                            <TouchableOpacity style={styles.imageChangeBtn} onPress={() => pickImageIndexed(setImage)}>
+                              <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
+                              <Text style={styles.imageChangeBtnText}>Change</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
+                              <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                            </TouchableOpacity>
+                          </View>
                         </View>
+                      ) : (
+                        <ImagePlaceholder optional={!activeMode.requiresImage} />
+                      )}
+                    </TouchableOpacity>
+                    {image && image.originalSize !== undefined && (
+                      <View style={styles.compressionStatsBox}>
+                        <Ionicons name="sparkles" size={14} color={C.accent} style={{ marginRight: 6 }} />
+                        <Text style={styles.compressionStatsText}>
+                          WebP Compressed: {formatBytes(image.originalSize)} → {formatBytes(image.compressedSize)} (-{image.savedPercent}% saved)
+                        </Text>
                       </View>
-                    ) : (
-                      <ImagePlaceholder optional={!activeMode.requiresImage} />
                     )}
-                  </TouchableOpacity>
+                  </View>
                 )}
               </View>
             )}
@@ -748,6 +790,15 @@ console.log('UPLOAD TOKEN:', token);
                         keyboardType="decimal-pad"
                         hint="Enter selling price in rupees"
                       />
+                      <View style={styles.switchRow}>
+                        <Text style={styles.switchLabel}>Notify Customers</Text>
+                        <Switch
+                          value={notifyCustomers}
+                          onValueChange={setNotifyCustomers}
+                          trackColor={{ false: '#767577', true: '#2F5D50' }}
+                          thumbColor={notifyCustomers ? '#fff' : '#f4f3f4'}
+                        />
+                      </View>
                     </>
                   )}
 
@@ -846,6 +897,23 @@ console.log('UPLOAD TOKEN:', token);
    7. STYLES
 ───────────────────────────────────────────── */
 const styles = StyleSheet.create({
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  switchLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.textPrimary,
+  },
   flex:      { flex: 1 },
   container: { flex: 1, backgroundColor: C.bg },
 
@@ -1042,5 +1110,27 @@ const styles = StyleSheet.create({
     shadowColor: '#1b4d3e', shadowOpacity: 0.4, shadowRadius: 8,
     marginBottom: 8,
     borderWidth: 1, borderColor: '#00E676',
+  },
+  compressionStatsBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.accentSoft,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  compressionStatsText: {
+    fontSize: 12,
+    color: C.accent,
+    fontWeight: '600',
+  },
+  compressionStatsTextMini: {
+    fontSize: 11,
+    color: C.accent,
+    fontWeight: '500',
+    marginTop: 2,
   },
 });

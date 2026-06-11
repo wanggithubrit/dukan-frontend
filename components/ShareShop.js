@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { trackShareEvent } from '../utils/shareAnalytics';
 
-// Premium green styling matching MyDukan color palette
+// Premium green styling matching mydukan color palette
 const C = {
   primary: '#0E5C42',
   primaryMid: '#1B7A58',
@@ -56,13 +56,13 @@ export default function ShareShop({ shop, customStyle }) {
     
     // Constructing the share message
     const message = [
-      `🏪 Check out this shop on MyDukan`,
+      `🏪 Check out this shop on mydukan`,
       `\nShop: ${shopName}`,
       `Link: https://mydukan.online/shop/${shop.id}`,
       address ? `Location: ${address}` : null,
       `Category: ${category}`,
-      `\nDiscover products and connect with local businesses using MyDukan.`,
-      `\nDownload MyDukan:`,
+      `\nDiscover products and connect with local businesses using mydukan.`,
+      `\nDownload mydukan:`,
       playStoreLink
     ].filter(Boolean).join('\n');
 

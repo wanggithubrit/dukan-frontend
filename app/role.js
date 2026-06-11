@@ -56,7 +56,7 @@ export default function RoleScreen() {
           <View style={styles.textGroup}>
             <Text style={styles.title}>Choose Your Path</Text>
             <Text style={styles.subtitle}>
-              How would you like to use MyDukan today?
+              How would you like to use mydukan today?
             </Text>
           </View>
 

@@ -3,7 +3,7 @@
 ───────────────────────────────────────────── */
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +29,67 @@ export default function VerifyOtp() {
   ───────────────────────────────────────────── */
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(120); // 2 minutes cooldown
+  const [resendLoading, setResendLoading] = useState(false);
+  const intervalRef = useRef(null);
+
+  const startTimer = () => {
+    clearInterval(intervalRef.current);
+    setTimer(120);
+    intervalRef.current = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => {
+    startTimer();
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  const formatTimer = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const handleResend = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Missing email address.');
+      return;
+    }
+    try {
+      setResendLoading(true);
+      const res = await fetch(`${BASE_URL}/api/send-otp/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), purpose: 'reset' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        startTimer();
+        let msg = 'Check your inbox for the new verification code.';
+        if (data.otp) {
+          msg += ` (Debug OTP: ${data.otp})`;
+        }
+        Alert.alert('OTP Sent', msg);
+        if (data.otp) {
+          setOtp(data.otp);
+        }
+      } else {
+        Alert.alert('Error', data.error || 'Failed to resend OTP.');
+      }
+    } catch {
+      Alert.alert('Network Error', 'Please check your connection and try again.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const verifyOtp = async () => {
     if (otp.length < 4) {
@@ -41,7 +102,7 @@ export default function VerifyOtp() {
       const res = await fetch(`${BASE_URL}/api/verify-otp/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp: otp.trim() }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otp.trim() }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -126,10 +187,22 @@ export default function VerifyOtp() {
 
             {/* RESEND OPTION */}
             <View style={styles.resendContainer}>
-              <Text style={styles.resendText}>{'Didn\'t receive code? '}</Text>
-              <TouchableOpacity onPress={() => {/* Logic to resend OTP */}}>
-                <Text style={styles.resendLink}>Resend OTP</Text>
-              </TouchableOpacity>
+              {timer > 0 ? (
+                <Text style={styles.resendText}>
+                  Resend OTP in <Text style={{ color: '#064E3B', fontWeight: '700' }}>{formatTimer(timer)}</Text>
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.resendText}>{'Didn\'t receive code? '}</Text>
+                  <TouchableOpacity onPress={handleResend} disabled={resendLoading}>
+                    {resendLoading ? (
+                      <ActivityIndicator size="small" color="#064E3B" style={{ marginLeft: 5 }} />
+                    ) : (
+                      <Text style={styles.resendLink}>Resend OTP</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
 

@@ -117,7 +117,7 @@ export default function Login() {
               {/* ✅ Static LOGO constant — no re-evaluation of require() */}
               <Image source={LOGO} style={styles.logo} resizeMode="contain" />
             </View>
-            <Text style={styles.brandName}>MyDukan</Text>
+            <Text style={styles.brandName}>mydukan</Text>
             <Text style={styles.brandTagline}>Making local shopping easy</Text>
           </View>
 

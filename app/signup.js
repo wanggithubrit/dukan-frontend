@@ -194,9 +194,26 @@ export default function CustomerSignup() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        Alert.alert('Account Created 🎉', 'You can now log in.', [
-          { text: 'Login', onPress: () => router.replace('/login') },
-        ]);
+        const accessToken = data.token || data.access;
+        const refreshToken = data.refresh || '';
+        if (accessToken) {
+          try {
+            await AsyncStorage.multiSet([
+              ['token', accessToken],
+              ['access_token', accessToken],
+              ['refresh', refreshToken],
+              ['user_id', String(data.user_id)],
+              ['role', 'customer'],
+            ]);
+          } catch (err) {
+            console.warn('AsyncStorage write failed:', err);
+          }
+          router.replace('/shop/home');
+        } else {
+          Alert.alert('Account Created 🎉', 'You can now log in.', [
+            { text: 'Login', onPress: () => router.replace('/login') },
+          ]);
+        }
       } else {
         // ── Never silently upgrade to merchant — show error as-is ──
         Alert.alert('Signup Failed', data.error || 'Please check your details.');
@@ -285,14 +302,14 @@ export default function CustomerSignup() {
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.verifyBtn, otpLoading && styles.verifyBtnDisabled]}
+                    style={[styles.verifyBtn, (otpLoading || otpSent) && styles.verifyBtnDisabled]}
                     onPress={sendOtp}
-                    disabled={otpLoading}
+                    disabled={otpLoading || otpSent}
                     activeOpacity={0.8}
                   >
                     {otpLoading
                       ? <ActivityIndicator size="small" color="#fff" />
-                      : <Text style={styles.verifyBtnText}>{otpSent ? 'Resend' : 'Verify'}</Text>
+                      : <Text style={styles.verifyBtnText}>{otpSent ? 'Sent' : 'Verify'}</Text>
                     }
                   </TouchableOpacity>
                 )}

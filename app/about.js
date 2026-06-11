@@ -59,7 +59,7 @@ export default function AboutScreen() {
             <Image source={require('../assets/images/logo_green.png')} style={s.logoImage} />
           </View>
           <Text style={s.brandTitle}>
-            My<Text style={{ color: C.textHi }}>Dukan</Text>
+            my<Text style={{ color: C.textHi }}>dukan</Text>
           </Text>
           <Text style={s.tagline}>Your Neighborhood Marketplace</Text>
         </View>
@@ -73,7 +73,7 @@ export default function AboutScreen() {
             <Text style={s.cardTitle}>Our Mission</Text>
           </View>
           <Text style={s.cardDesc}>
-            MyDukan is a hyperlocal marketplace designed to help people discover nearby shops, products, and offers in their community.
+            mydukan is a hyperlocal marketplace designed to help people discover nearby shops, products, and offers in their community.
           </Text>
         </View>
 
@@ -99,7 +99,7 @@ export default function AboutScreen() {
             <Text style={s.cardTitle}>Built for Communities</Text>
           </View>
           <Text style={s.cardDesc}>
-            Whether you are looking for groceries, fashion, electronics, restaurants, or local services, MyDukan brings local shopping closer to you with absolute simplicity and digital ease.
+            Whether you are looking for groceries, fashion, electronics, restaurants, or local services, mydukan brings local shopping closer to you with absolute simplicity and digital ease.
           </Text>
         </View>
 

@@ -53,11 +53,11 @@ const NotificationCard = memo(({ item, onPress, onDelete }) => {
     >
       <View style={styles.iconContainer}>
         {!item.is_read && <View style={styles.statusIndicator} />}
-        <View style={[styles.avatarCircle, !item.is_read && { backgroundColor: THEME.primary }]}>
-          <Ionicons 
-            name={item.is_read ? "mail-outline" : "mail-unread"} 
-            size={20} 
-            color={item.is_read ? THEME.primary : THEME.bg} 
+        <View style={styles.avatarCircle}>
+          <Image 
+            source={require('../assets/images/logo_green.png')} 
+            style={{ width: 46, height: 46, borderRadius: 14 }}
+            resizeMode="cover"
           />
         </View>
       </View>

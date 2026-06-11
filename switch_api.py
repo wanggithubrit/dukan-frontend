@@ -17,16 +17,14 @@ def replace_in_files(target_ip):
                     with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                     
-                    current_local = 'http://localhost:8000'
-                    current_emulator = 'http://10.0.2.2:8000'
-                    
+                    import re
                     new_content = content
                     if production_url in content and target_ip != production_url:
                         new_content = content.replace(production_url, target_ip)
-                    elif current_local in content:
-                        new_content = content.replace(current_local, target_ip)
-                    elif current_emulator in content:
-                        new_content = content.replace(current_emulator, target_ip)
+                    else:
+                        # Match http://localhost:8000, http://10.0.2.2:8000, and any http://<IP>:8000
+                        local_pattern = r'http://(?:localhost|127\.0\.0\.1|10\.0\.2\.2|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):8000'
+                        new_content = re.sub(local_pattern, target_ip, content)
                         
                     if new_content != content:
                         with open(filepath, 'w', encoding='utf-8') as f:

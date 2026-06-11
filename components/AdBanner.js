@@ -30,7 +30,7 @@ export default function AdBanner() {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 10,
+    marginVertical: 4,
     alignItems: 'center',
   },
   hidden: {

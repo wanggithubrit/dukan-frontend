@@ -319,7 +319,7 @@ export default function EditShop() {
         </TouchableOpacity>
 
         <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Daily Open/Close Reminders</Text>
+          <Text style={styles.switchLabel}>Auto Open/Close Shop</Text>
           <Switch
             value={formData.auto_reminder_enabled}
             onValueChange={(val) => handleInputChange('auto_reminder_enabled', val)}

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { compressImage, formatBytes } from '../../utils/imageCompressor';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,18 +17,23 @@ export default function BannerUpload() {
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ OPTIMIZED IMAGE PICKER
+  // ✅ OPTIMIZED IMAGE PICKER WITH WEBP COMPRESSION
   const pickImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      quality: 0.7, // 🔥 compress = faster upload
+      quality: 1.0,
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setImage(result.assets[0]);
+      try {
+        const compressed = await compressImage(result.assets[0].uri);
+        setImage(compressed);
+      } catch (err) {
+        alert('Compression error');
+      }
     }
   }, []);
 
-  // ✅ OPTIMIZED UPLOAD
+  // ✅ OPTIMIZED UPLOAD WITH WEBP FORMAT
   const uploadBanner = useCallback(async () => {
     if (loading) return;
 
@@ -45,8 +51,8 @@ export default function BannerUpload() {
 
       form.append('image', {
         uri: image.uri,
-        name: 'banner.jpg',
-        type: 'image/jpeg',
+        name: 'banner.webp',
+        type: 'image/webp',
       });
 
       const res = await fetch(`${BASE_URL}/api/banner/upload/`, {
@@ -88,6 +94,15 @@ export default function BannerUpload() {
           <Text style={{ color: '#777' }}>Select Banner Image</Text>
         )}
       </TouchableOpacity>
+
+      {/* COMPRESSION STATS */}
+      {image && image.originalSize !== undefined && (
+        <View style={styles.statsBox}>
+          <Text style={styles.statsText}>
+            WebP Compressed: {formatBytes(image.originalSize)} → {formatBytes(image.compressedSize)} (-{image.savedPercent}% saved)
+          </Text>
+        </View>
+      )}
 
       {/* UPLOAD BUTTON */}
       <TouchableOpacity
@@ -142,5 +157,19 @@ const styles = StyleSheet.create({
     marginTop: 20,
     alignItems: 'center',
     borderRadius: 10
+  },
+  statsBox: {
+    backgroundColor: 'rgba(47,93,80,0.08)',
+    padding: 10,
+    marginTop: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D6E8D6',
+    alignItems: 'center',
+  },
+  statsText: {
+    fontSize: 12,
+    color: '#2F5D50',
+    fontWeight: '600',
   },
 });

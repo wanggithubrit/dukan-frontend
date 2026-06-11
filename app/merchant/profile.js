@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import SupportMyDukan from '../../components/SupportMyDukan';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -16,6 +17,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -185,6 +187,9 @@ export default function MerchantProfile() {
     upgrading: false,
     showUpgrade: false,
     showQR: false,
+    showDelete: false,
+    deletePassword: '',
+    deleteLoading: false,
   });
 
   const fetchDashboard = useCallback(async () => {
@@ -216,11 +221,10 @@ export default function MerchantProfile() {
   const shareReferral = async () => {
     try {
       const referralCode = data.referral_code || 'DUKAN777';
-      const referralLink = `https://mydukan.online/merchant-signup?referralCode=${encodeURIComponent(referralCode)}`;
+      const appLink = 'https://play.google.com/store/apps/details?id=com.mydukan.dukanapp';
       await Share.share({
-        title: 'Join mydukan as a merchant',
-        message: `Join mydukan as a merchant using my code: ${referralCode}\n\nSign up here: ${referralLink}\n\nBoost your sales today! 🚀`,
-        url: referralLink,
+        title: 'Join mydukan as a Merchant',
+        message: `Join mydukan as a merchant using my referral code: ${referralCode}\n\nDownload the app here:\n${appLink}\n\nBoost your sales today! 🚀`,
       });
     } catch (error) {
       console.log(error.message);
@@ -277,6 +281,41 @@ export default function MerchantProfile() {
     ]);
   };
 
+  const handleMerchantDeleteAccount = async () => {
+    if (!ui.deletePassword.trim()) {
+      Alert.alert('Error', 'Please enter your password.');
+      return;
+    }
+    setUIKey('deleteLoading', true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await fetch(`${BASE_URL}/api/auth/delete/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: ui.deletePassword })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUI(prev => ({ ...prev, showDelete: false, deletePassword: '' }));
+        Alert.alert('Deleted', 'Your account has been deleted successfully.', [
+          { text: 'OK', onPress: async () => {
+              await AsyncStorage.clear();
+              router.replace('/role');
+          }}
+        ]);
+      } else {
+        Alert.alert('Error', data.error || 'Failed to delete account');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setUIKey('deleteLoading', false);
+    }
+  };
+
   if (ui.loading || !data.plan) {
     return (
       <View style={styles.center}>
@@ -319,6 +358,80 @@ export default function MerchantProfile() {
         </View>
       </Modal>
 
+      {/* DELETE ACCOUNT MODAL */}
+      <Modal 
+        visible={ui.showDelete} 
+        transparent 
+        animationType="fade"
+        onRequestClose={() => {
+          if (!ui.deleteLoading) {
+            setUI(prev => ({ ...prev, showDelete: false, deletePassword: '' }));
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={{
+              width: 54,
+              height: 54,
+              borderRadius: 27,
+              backgroundColor: '#FF4B4B18',
+              alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'center',
+              marginBottom: 16
+            }}>
+              <Ionicons name="warning" size={28} color="#FF4B4B" />
+            </View>
+            <Text style={[styles.modalTitle, { textAlign: 'center' }]}>Delete Business Account?</Text>
+            <Text style={[styles.modalSub, { textAlign: 'center', lineHeight: 18, marginBottom: 20 }]}>
+              This will permanently delete your store, product listings, banners, and profile data. This cannot be undone.
+            </Text>
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: '#666', letterSpacing: 0.5, marginBottom: 6 }}>CONFIRM PASSWORD</Text>
+              <TextInput
+                secureTextEntry
+                placeholder="••••••••"
+                placeholderTextColor="#bbb"
+                value={ui.deletePassword}
+                onChangeText={(txt) => setUI(prev => ({ ...prev, deletePassword: txt }))}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#F8FAF9',
+                  borderWidth: 1,
+                  borderColor: '#E8EFEA',
+                  borderRadius: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  fontSize: 15,
+                  color: '#1a1a1a',
+                }}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              <TouchableOpacity 
+                style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 14, borderRadius: 12, alignItems: 'center' }} 
+                onPress={() => setUI(prev => ({ ...prev, showDelete: false, deletePassword: '' }))}
+                disabled={ui.deleteLoading}
+              >
+                <Text style={{ color: '#888', fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ flex: 1, backgroundColor: '#FF4B4B', padding: 14, borderRadius: 12, alignItems: 'center' }} 
+                onPress={handleMerchantDeleteAccount}
+                disabled={ui.deleteLoading || !ui.deletePassword.trim()}
+              >
+                {ui.deleteLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 110 }}
@@ -332,7 +445,14 @@ export default function MerchantProfile() {
           <View style={styles.heroTop}>
             <View style={styles.shopInitialBox}><Text style={styles.shopInitial}>{shop?.name?.[0]}</Text></View>
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={styles.shopName}>{shop?.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.shopName}>{shop?.name}</Text>
+                {plan?.type === 'pro' && (
+                  <View style={{ backgroundColor: '#EAB308', width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', shadowColor: '#FFD700', shadowOpacity: 0.5, shadowRadius: 4, elevation: 2 }}> 
+                    <Ionicons name="star" size={8} color="#FFFFFF" />
+                  </View>
+                )}
+              </View>
               <View style={styles.categoryPill}><Text style={styles.categoryText}>{shop?.category || 'General'}</Text></View>
             </View>
           </View>
@@ -354,20 +474,22 @@ export default function MerchantProfile() {
           </View>
         </View>
 
-        <View style={styles.referralCard}>
-          <Text style={styles.referralTitle}>Refer & Earn Pro</Text>
-          <Text style={styles.referralCodeText}>Your code: {refCode}</Text>
-          <View style={styles.calcWrapper}>
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${progress}%` }]} />
+        {plan.type === 'free' && (
+          <View style={styles.referralCard}>
+            <Text style={styles.referralTitle}>Refer & Earn Pro</Text>
+            <Text style={styles.referralCodeText}>Your code: {refCode}</Text>
+            <View style={styles.calcWrapper}>
+              <View style={styles.progressContainer}>
+                <View style={[styles.progressBar, { width: `${progress}%` }]} />
+              </View>
+              <Text style={styles.calcStatus}>{referral_count}/3 Friends Invited</Text>
             </View>
-            <Text style={styles.calcStatus}>{referral_count}/3 Friends Invited</Text>
+            <TouchableOpacity style={styles.shareFullBtn} onPress={shareReferral}>
+              <Ionicons name="share-social" size={18} color="#fff" />
+              <Text style={styles.shareFullText}>Invite Merchants</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.shareFullBtn} onPress={shareReferral}>
-            <Ionicons name="share-social" size={18} color="#fff" />
-            <Text style={styles.shareFullText}>Invite Merchants</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         <TouchableOpacity style={styles.qrTriggerBtn} onPress={() => setUIKey('showQR', true)}>
           <Ionicons name="qr-code-outline" size={20} color="#fff" />
@@ -378,6 +500,7 @@ export default function MerchantProfile() {
         <View style={styles.settingsCard}>
           <Setting icon="create-outline" text="Edit Shop Profile" onPress={() => router.push('/merchant/edit-shop')} />
           <Setting icon="images-outline" text="Add Shop Photos" onPress={() => router.push('/merchant/create-post')} />
+          <Setting icon="trash-outline" text="Delete Account" color="#FF4B4B" onPress={() => setUIKey('showDelete', true)} />
           <Setting icon="log-out-outline" text="Logout" color="#FF4B4B" onPress={handleLogout} border={false} />
         </View>
 
@@ -416,6 +539,10 @@ export default function MerchantProfile() {
         <View style={styles.settingsCard}>
           <SupportRow icon="mail-outline" title="Help Desk" subtitle="Get assistance via email" onPress={openEmail} />
           <SupportRow icon="information-circle-outline" title="About Us" subtitle="Learn more about mydukan" onPress={() => router.push('/about')} />
+        </View>
+
+        <View style={{ marginHorizontal: 16, marginBottom: 10 }}>
+          <SupportMyDukan platform="merchant" />
         </View>
 
       </ScrollView>

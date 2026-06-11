@@ -772,14 +772,19 @@ const ShopListHeader = memo(({
       <View style={s.infoCard}>
         <View style={s.infoTopRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={s.shopName}>{shop.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={s.shopName}>{shop.name}</Text>
+              {isPro && (
+                <View style={{ backgroundColor: '#EAB308', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', shadowColor: '#FFD700', shadowOpacity: 0.5, shadowRadius: 4, elevation: 2 }}>
+                  <Ionicons name="star" size={9} color="#FFFFFF" />
+                </View>
+              )}
+            </View>
             <CategoryPill label={shop.category} />
           </View>
-          <View style={[s.statusChip, { backgroundColor: shop.is_open ? '#EDFBF2' : '#F5F5F5' }]}>
-            {shop.is_open && <PulseDot />}
-            {!shop.is_open && <View style={[s.statusDot, { backgroundColor: C.textLight }]} />}
-            <Text style={[s.statusText, { color: shop.is_open ? C.accent : C.textLight }]}>
-              {shop.is_open ? 'Open' : 'Closed'}
+          <View style={[s.statusChip, { backgroundColor: shop.is_open ? '#EDFBF2' : '#FCE8E6' }]}>
+            <Text style={[s.statusText, { color: shop.is_open ? C.accent : '#EA4335' }]}>
+              {shop.is_open ? '🟢 Open Now' : '🔴 Closed'}
             </Text>
           </View>
         </View>
@@ -796,9 +801,9 @@ const ShopListHeader = memo(({
           <View style={s.timingBadge}>
             <Ionicons name="time" size={14} color={C.primary} style={{ marginRight: 6 }} />
             <Text style={s.timingText}>
-              Business Hours:{' '}
+              {shop.is_open ? 'Closes at ' : 'Opens at '}
               <Text style={s.timingHours}>
-                {formatTime(shop.opening_time)} – {formatTime(shop.closing_time)}
+                {shop.is_open ? formatTime(shop.closing_time) : formatTime(shop.opening_time)}
               </Text>
             </Text>
           </View>

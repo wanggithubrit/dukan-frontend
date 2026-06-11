@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AppUpdateModal from '../../components/AppUpdateModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
@@ -639,7 +640,7 @@ export default function Home() {
       const user_id = await AsyncStorage.getItem('user_id');
       if (!user_id) return;
       const res = await fetch(`${BASE_URL}/api/user/${user_id}/`);
-      if (res.status === 401 || res.status === 404 || res.status === 500) {
+      if (res.status === 401) {
         await AsyncStorage.multiRemove(['token', 'user_id', 'user_role']);
         router.replace('/login');
         return;
@@ -719,9 +720,25 @@ export default function Home() {
         return;
       }
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      // GPS Services enabled check
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        setCity('GPS Disabled');
+        return;
+      }
+
+      // Try last known position fallback for weak signal
+      let loc = null;
+      try {
+        loc = await Location.getLastKnownPositionAsync({});
+      } catch (e) {}
+
+      if (!loc) {
+        loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      }
+
       const { latitude, longitude } = loc.coords;
 
       await AsyncStorage.multiSet([
@@ -1215,7 +1232,6 @@ export default function Home() {
             <ScrollView
               ref={bannerRef}
               horizontal
-              pagingEnabled
               showsHorizontalScrollIndicator={false}
               snapToInterval={bannerWidth + 8}
               decelerationRate="fast"
@@ -1285,7 +1301,7 @@ export default function Home() {
                       />
                       <View style={{ gap: 4 }}>
                         <Text style={s.bannerEyebrow}>
-                          {b.small_text || 'MyDukan'}
+                          {b.small_text || 'mydukan'}
                         </Text>
                         <Text style={s.bannerTitle}>
                           {b.title || 'Save your time'}
@@ -1464,6 +1480,7 @@ export default function Home() {
           );
         })}
       </View>
+      <AppUpdateModal />
     </SafeAreaView>
   );
 }
@@ -2078,7 +2095,7 @@ const s = StyleSheet.create({
   // Banners
   bannerSection: {
     paddingHorizontal: 16,
-    marginTop: 22,
+    marginTop: 10,
     marginBottom: 6,
   },
 

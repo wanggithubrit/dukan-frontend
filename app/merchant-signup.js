@@ -286,12 +286,29 @@ export default function MerchantSignup() {
       });
       const data = await res.json();
       if (res.ok) {
-        const msg = data.upgraded
-          ? 'Your customer account has been upgraded to a merchant account!'
-          : 'Merchant account created!';
-        Alert.alert('Success', msg, [
-          { text: 'Login', onPress: () => router.replace('/login') },
-        ]);
+        const accessToken = data.token || data.access;
+        const refreshToken = data.refresh || '';
+        if (accessToken) {
+          try {
+            await AsyncStorage.multiSet([
+              ['token', accessToken],
+              ['access_token', accessToken],
+              ['refresh', refreshToken],
+              ['user_id', String(data.user_id)],
+              ['role', 'merchant'],
+            ]);
+          } catch (err) {
+            console.warn('AsyncStorage write failed:', err);
+          }
+          router.replace('/merchant/home');
+        } else {
+          const msg = data.upgraded
+            ? 'Your customer account has been upgraded to a merchant account!'
+            : 'Merchant account created!';
+          Alert.alert('Success', msg, [
+            { text: 'Login', onPress: () => router.replace('/login') },
+          ]);
+        }
       } else {
         Alert.alert('Signup Failed', data.error || 'Check your details.');
       }
@@ -403,14 +420,14 @@ export default function MerchantSignup() {
                   </View>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.verifyBtn, otpLoading && styles.verifyBtnDisabled]}
+                    style={[styles.verifyBtn, (otpLoading || otpSent) && styles.verifyBtnDisabled]}
                     onPress={() => sendOtp(form.email)}
-                    disabled={otpLoading}
+                    disabled={otpLoading || otpSent}
                     activeOpacity={0.8}
                   >
                     {otpLoading
                       ? <ActivityIndicator size="small" color="#fff" />
-                      : <Text style={styles.verifyBtnText}>{otpSent ? 'Resend' : 'Verify'}</Text>
+                      : <Text style={styles.verifyBtnText}>{otpSent ? 'Sent' : 'Verify'}</Text>
                     }
                   </TouchableOpacity>
                 )}

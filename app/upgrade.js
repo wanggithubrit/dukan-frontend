@@ -20,11 +20,11 @@ export default function Upgrade() {
 
     // 2️⃣ Open Razorpay
     const options = {
-      description: 'MyDukan Pro Plan',
+      description: 'mydukan Pro Plan',
       currency: 'INR',
       key: 'YOUR_KEY_ID',
       amount: data.amount,
-      name: 'MyDukan',
+      name: 'mydukan',
       order_id: data.id,
       prefill: {
         email: '',

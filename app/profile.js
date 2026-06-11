@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import SupportMyDukan from '../components/SupportMyDukan';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import { usePathname, useRouter } from 'expo-router';
@@ -14,7 +15,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Modal,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
@@ -88,6 +91,9 @@ export default function Profile() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback,     setFeedback]     = useState('');
   const [sending,      setSending]      = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -139,6 +145,39 @@ export default function Profile() {
     ]);
     router.replace('/role');
   }, [router]);
+
+  const handleDeleteAccount = useCallback(async () => {
+    if (!deletePassword.trim()) {
+      Alert.alert('Error', 'Please enter your password.');
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await fetch(`${BASE_URL}/api/auth/delete/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: deletePassword })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDeleteModalVisible(false);
+        setDeletePassword('');
+        Alert.alert('Deleted', 'Your account has been deleted successfully.', [
+          { text: 'OK', onPress: () => handleLogout() }
+        ]);
+      } else {
+        Alert.alert('Error', data.error || 'Failed to delete account');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [deletePassword, handleLogout]);
 
   const toggleFeedback = useCallback(() => setShowFeedback(v => !v), []);
 
@@ -295,20 +334,13 @@ export default function Profile() {
             />
             <View style={s.divider} />
             <MenuRow
-              icon="chatbubble-ellipses-outline"
-              iconBg="rgba(124,159,255,0.15)"
-              iconColor="#7C9FFF"
-              label="Help & Feedback"
-              sublabel="We'd love to hear from you"
-              onPress={toggleFeedback}
+              icon="trash-outline"
+              iconColor="#FF4B4B"
+              iconBg="rgba(255,75,75,0.15)"
+              label="Delete Account"
+              sublabel="Permanently delete your profile"
+              onPress={() => setDeleteModalVisible(true)}
               last={!showFeedback}
-              rightEl={
-                <Ionicons
-                  name={showFeedback ? 'chevron-down' : 'chevron-forward'}
-                  size={15}
-                  color={C.textLo}
-                />
-              }
             />
             {showFeedback && (
               <View style={s.feedbackPanel}>
@@ -340,6 +372,73 @@ export default function Profile() {
             )}
           </View>
         </View>
+
+        {/* Delete Account Modal */}
+        <Modal
+          visible={deleteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            if (!deleteLoading) {
+              setDeleteModalVisible(false);
+              setDeletePassword('');
+            }
+          }}
+        >
+          <View style={s.modalOverlay}>
+            <View style={s.modalCard}>
+              {/* Alert Icon */}
+              <View style={s.alertIconWrapper}>
+                <Ionicons name="warning" size={32} color="#EF4444" />
+              </View>
+
+              <Text style={s.modalTitle}>Delete Your Account?</Text>
+              <Text style={s.modalSub}>
+                All your data, shops, favorites, and profile configurations will be permanently deleted. This action cannot be reversed.
+              </Text>
+
+              {/* Password Input with label */}
+              <View style={s.formField}>
+                <Text style={s.fieldLabel}>CONFIRM PASSWORD</Text>
+                <TextInput
+                  secureTextEntry
+                  placeholder="••••••••"
+                  placeholderTextColor="#A0BAB4"
+                  value={deletePassword}
+                  onChangeText={setDeletePassword}
+                  style={s.modalInput}
+                  selectionColor={C.primary}
+                />
+              </View>
+
+              <View style={s.modalBtnRow}>
+                <TouchableOpacity
+                  style={[s.modalBtn, s.modalCancelBtn]}
+                  onPress={() => {
+                    setDeleteModalVisible(false);
+                    setDeletePassword('');
+                  }}
+                  disabled={deleteLoading}
+                  activeOpacity={0.8}
+                >
+                  <Text style={s.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.modalBtn, s.modalDeleteBtn]}
+                  onPress={handleDeleteAccount}
+                  disabled={deleteLoading || !deletePassword.trim()}
+                  activeOpacity={0.8}
+                >
+                  {deleteLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={s.modalDeleteText}>Confirm Delete</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* SOCIAL */}
         <View style={s.section}>
@@ -373,6 +472,8 @@ export default function Profile() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <SupportMyDukan platform="customer" />
 
         <Text style={s.version}>dukanpersonal316@gmail.com</Text>
       </Animated.ScrollView>
@@ -599,5 +700,104 @@ const s = StyleSheet.create({
    },
    navLabelActive: {
      color: C.primary,
+   },
+   // Modal styling
+   modalOverlay: {
+     flex: 1,
+     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+     justifyContent: 'center',
+     alignItems: 'center',
+     padding: 20,
+   },
+   modalCard: {
+     width: '100%',
+     maxWidth: 340,
+     backgroundColor: C.card,
+     borderRadius: 24,
+     padding: 24,
+     alignItems: 'center',
+     borderWidth: 1,
+     borderColor: C.cardBorder,
+     elevation: 5,
+     shadowColor: '#000',
+     shadowOpacity: 0.15,
+     shadowRadius: 12,
+     shadowOffset: { width: 0, height: 6 },
+   },
+   modalTitle: {
+     fontSize: 18,
+     fontWeight: '800',
+     color: C.textHi,
+     marginBottom: 8,
+     textAlign: 'center',
+   },
+   modalSub: {
+     fontSize: 13,
+     color: C.textMid,
+     textAlign: 'center',
+     lineHeight: 18,
+     marginBottom: 20,
+   },
+   modalInput: {
+     width: '100%',
+     backgroundColor: '#F4F7F6',
+     borderWidth: 1,
+     borderColor: C.cardBorder,
+     borderRadius: 12,
+     paddingHorizontal: 16,
+     paddingVertical: 12,
+     fontSize: 15,
+     color: C.textHi,
+     marginBottom: 20,
+   },
+   modalBtnRow: {
+     flexDirection: 'row',
+     width: '100%',
+     gap: 12,
+   },
+   modalBtn: {
+     flex: 1,
+     paddingVertical: 14,
+     borderRadius: 12,
+     alignItems: 'center',
+     justifyContent: 'center',
+   },
+   modalCancelBtn: {
+     backgroundColor: C.surface,
+     borderWidth: 1,
+     borderColor: C.cardBorder,
+   },
+   modalCancelText: {
+     fontSize: 14,
+     fontWeight: '700',
+     color: C.textMid,
+   },
+   modalDeleteBtn: {
+     backgroundColor: C.danger,
+   },
+   modalDeleteText: {
+     fontSize: 14,
+     fontWeight: '700',
+     color: '#FFF',
+   },
+   alertIconWrapper: {
+     width: 60,
+     height: 60,
+     borderRadius: 30,
+     backgroundColor: 'rgba(239, 68, 68, 0.1)',
+     alignItems: 'center',
+     justifyContent: 'center',
+     marginBottom: 16,
+   },
+   formField: {
+     width: '100%',
+     marginBottom: 16,
+   },
+   fieldLabel: {
+     fontSize: 10,
+     fontWeight: '800',
+     color: C.textMid,
+     letterSpacing: 1,
+     marginBottom: 6,
    },
 });

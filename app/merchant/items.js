@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { compressImage, formatBytes } from '../../utils/imageCompressor';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -154,6 +155,7 @@ export default function InventoryPage() {
   const [trackQuantity,setTrackQuantity]= useState(false);
   const [quantity,     setQuantity]     = useState('0');
   const [saving,       setSaving]       = useState(false);
+  const [notifying,    setNotifying]    = useState(false);
 
   const [creditStatus, setCreditStatus] = useState({
     available_credits: 0,
@@ -192,14 +194,19 @@ export default function InventoryPage() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      quality: 0.8,
+      quality: 1.0,
       allowsEditing: true,
       aspect: [4, 3],
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setter(result.assets[0]);
-      if (removeSetter) removeSetter(false);
+      try {
+        const compressed = await compressImage(result.assets[0].uri);
+        setter(compressed);
+        if (removeSetter) removeSetter(false);
+      } catch (err) {
+        Alert.alert('Compression Error', 'Could not compress selected product image.');
+      }
     }
   }, []);
 
@@ -491,6 +498,31 @@ export default function InventoryPage() {
     }
   }, [selectedItem, editName, editPrice, quantity, trackQuantity, editImage1, editImage2, editImage3, removeImage1, removeImage2, removeImage3, creditStatus.is_pro, getToken]);
 
+  const handleNotifyCustomers = useCallback(async () => {
+    if (!selectedItem || notifying) return;
+    setNotifying(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${BASE_URL}/api/item/${selectedItem.id}/notify/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert('Success 🎉', 'Your customers have been notified about this item!');
+      } else {
+        Alert.alert('Broadcast Failed', data.message || 'Could not send notification.');
+      }
+    } catch (err) {
+      Alert.alert('Network Error', 'Please check your internet connection.');
+    } finally {
+      setNotifying(false);
+    }
+  }, [selectedItem, notifying, getToken]);
+
   const unlockQuantityFeature = useCallback(async () => {
     try {
       const token = await getToken();
@@ -507,7 +539,7 @@ export default function InventoryPage() {
         key: data.key,
         amount: data.amount,
         order_id: data.order_id,
-        name: 'MyDukan',
+        name: 'mydukan',
         theme: { color: '#2F5D50' },
       };
 
@@ -671,37 +703,50 @@ export default function InventoryPage() {
                     </View>
 
                     {creditStatus.is_pro && (
-                      <View style={styles.imageSlotsRow}>
-                        {[
-                          { value: editImage1, label: 'Image 1', removeFlag: removeImage1, setter: setEditImage1, removeSetter: setRemoveImage1 },
-                          { value: editImage2, label: 'Image 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 },
-                          { value: editImage3, label: 'Image 3', removeFlag: removeImage3, setter: setEditImage3, removeSetter: setRemoveImage3 },
-                        ].map((slot, index) => (
-                          <TouchableOpacity
-                            key={index}
-                            style={styles.imageSlot}
-                            onPress={() => pickItemImage(slot.setter, slot.removeSetter)}
-                            activeOpacity={0.8}
-                          >
-                            {slot.value ? (
-                              <Image source={{ uri: typeof slot.value === 'string' ? getImageUrl(slot.value) : slot.value.uri }} style={styles.imageSlotImg} resizeMode="cover" />
-                            ) : (
-                              <View style={styles.imageSlotPlaceholder}>
-                                <Ionicons name="camera-outline" size={18} color="#2F5D50" />
-                                <Text style={styles.imageSlotLabel}>{slot.label}</Text>
-                              </View>
-                            )}
-                            {slot.value ? (
-                              <TouchableOpacity
-                                style={styles.imageSlotRemove}
-                                onPress={() => clearItemImage(slot.setter, Boolean(slot.value), slot.removeSetter)}
-                              >
-                                <Ionicons name="close-circle" size={18} color="#fff" />
-                              </TouchableOpacity>
-                            ) : null}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+                      <>
+                        <View style={styles.imageSlotsRow}>
+                          {[
+                            { value: editImage1, label: 'Image 1', removeFlag: removeImage1, setter: setEditImage1, removeSetter: setRemoveImage1 },
+                            { value: editImage2, label: 'Image 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 },
+                            { value: editImage3, label: 'Image 3', removeFlag: removeImage3, setter: setEditImage3, removeSetter: setRemoveImage3 },
+                          ].map((slot, index) => (
+                            <TouchableOpacity
+                              key={index}
+                              style={styles.imageSlot}
+                              onPress={() => pickItemImage(slot.setter, slot.removeSetter)}
+                              activeOpacity={0.8}
+                            >
+                              {slot.value ? (
+                                <Image source={{ uri: typeof slot.value === 'string' ? getImageUrl(slot.value) : slot.value.uri }} style={styles.imageSlotImg} resizeMode="cover" />
+                              ) : (
+                                <View style={styles.imageSlotPlaceholder}>
+                                  <Ionicons name="camera-outline" size={18} color="#2F5D50" />
+                                  <Text style={styles.imageSlotLabel}>{slot.label}</Text>
+                                </View>
+                              )}
+                              {slot.value ? (
+                                <TouchableOpacity
+                                  style={styles.imageSlotRemove}
+                                  onPress={() => clearItemImage(slot.setter, Boolean(slot.value), slot.removeSetter)}
+                                >
+                                  <Ionicons name="close-circle" size={18} color="#fff" />
+                                </TouchableOpacity>
+                              ) : null}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        {/* Compression stats for edit modal */}
+                        <View style={{ marginBottom: 12 }}>
+                          {[editImage1, editImage2, editImage3].map((img, idx) => {
+                            if (!img || typeof img === 'string' || img.originalSize === undefined) return null;
+                            return (
+                              <Text key={idx} style={styles.compressionStatsTextMini}>
+                                Image {idx + 1}: {formatBytes(img.originalSize)} → {formatBytes(img.compressedSize)} (-{img.savedPercent}% saved)
+                              </Text>
+                            );
+                          })}
+                        </View>
+                      </>
                     )}
 
                     <View style={styles.divider} />
@@ -1224,4 +1269,39 @@ const styles = StyleSheet.create({
 
   closeModalBtn: { backgroundColor: '#f3f4f6', paddingVertical: 13, borderRadius: 14, alignItems: 'center', marginTop: 14 },
   closeModalText: { fontSize: 14, fontWeight: '700', color: '#4b5563' },
+  compressionStatsBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(47,93,80,0.08)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#D6E8D6',
+  },
+  compressionStatsText: {
+    fontSize: 12,
+    color: '#2F5D50',
+    fontWeight: '600',
+  },
+  compressionStatsTextMini: {
+    fontSize: 11,
+    color: '#2F5D50',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  notifyBtn: {
+    backgroundColor: '#0284C7',
+    paddingVertical: 15,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  notifyBtnLoading: { opacity: 0.7 },
+  notifyText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });
