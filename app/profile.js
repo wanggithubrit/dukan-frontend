@@ -116,7 +116,7 @@ export default function Profile() {
       ]);
       const res  = await fetch(`${BASE_URL}/api/user/${user_id}/`);
       if (res.status === 401 || res.status === 404 || res.status === 500) {
-        await AsyncStorage.multiRemove(['token', 'user_id', 'user_role']);
+        await AsyncStorage.clear();
         router.replace('/login');
         return;
       }
@@ -144,10 +144,7 @@ export default function Profile() {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await Promise.all([
-      AsyncStorage.removeItem('token'),
-      AsyncStorage.removeItem('user_id'),
-    ]);
+    await AsyncStorage.clear();
     router.replace('/role');
   }, [router]);
 
