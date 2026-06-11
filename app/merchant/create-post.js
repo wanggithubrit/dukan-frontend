@@ -340,7 +340,8 @@ export default function CreatePost() {
   const activeMode         = useMemo(() => MODES.find(m => m.key === mode), [mode]);
   const showPhotoStep      = !activeMode.hidePhoto;
   const creditsRemaining   = useMemo(() => credits?.available_credits ?? 0, [credits]);
-  const isProLimitReached = useMemo(() => credits?.is_pro && (stats?.items ?? 0) >= 120, [credits, stats]);
+  const proLimit = credits?.pro_tier_limit ?? 120;
+  const isProLimitReached = useMemo(() => credits?.is_pro && (stats?.items ?? 0) >= proLimit, [credits, stats, proLimit]);
   const isItemLimitReached = useMemo(() => {
     if (credits?.is_pro) return isProLimitReached;
     const limit = credits?.product_limit ?? 20;
@@ -349,12 +350,12 @@ export default function CreatePost() {
   }, [credits, stats, isProLimitReached]);
   const itemLimitMessage = useMemo(() => {
     if (credits?.is_pro && isProLimitReached) {
-      return 'Item limit reached — max 120 items. Contact support or send feedback to increase your limit.';
+      return `Item limit reached — max ${proLimit} items. Contact support or send feedback to increase your limit.`;
     }
     return isItemLimitReached
       ? 'Item limit reached — watch an ad to get +1 free credit'
       : `${creditsRemaining} credit${creditsRemaining !== 1 ? 's' : ''} remaining`;
-  }, [credits, creditsRemaining, isItemLimitReached, isProLimitReached]);
+  }, [credits, creditsRemaining, isItemLimitReached, isProLimitReached, proLimit]);
   const publishDisabled = loading || (mode === 'item' && credits?.is_pro && isProLimitReached);
 
   const checks = useMemo(() => {
@@ -448,10 +449,11 @@ console.log('UPLOAD TOKEN:', token);
     
     if (!token) return Alert.alert('Session Expired', 'Please log in again.');
 
-    if (mode === 'item' && credits?.is_pro && stats?.items >= 120) {
+    const proLimit = credits?.pro_tier_limit ?? 120;
+    if (mode === 'item' && credits?.is_pro && stats?.items >= proLimit) {
       return Alert.alert(
         'Item Limit Reached',
-        'You have reached the maximum limit of 120 items on the Pro plan. To increase your limit further, please contact support or send us feedback.',
+        `You have reached the maximum limit of ${proLimit} items on the Pro plan. To increase your limit further, please contact support or send us feedback.`,
         [
           {
             text: '📧 Email Support',

@@ -341,7 +341,7 @@ export default function MerchantProfile() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Upgrade to PRO</Text>
             <Text style={styles.modalSub}>Take your shop to the next level</Text>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Showcase up to 120 products in your shop</Text></View>
+            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Showcase up to {plan?.pro_tier_limit ?? 120} products in your shop</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Upload up to 3 images per product</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Get a premium verified badge on your shop</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Appear before free shops when distance is the same</Text></View>

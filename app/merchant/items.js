@@ -161,6 +161,7 @@ export default function InventoryPage() {
     available_credits: 0,
     product_limit: 20,
     is_pro: false,
+    pro_tier_limit: 120,
   });
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [purchasingLimit, setPurchasingLimit] = useState(false);
@@ -227,6 +228,7 @@ export default function InventoryPage() {
           available_credits: data.available_credits,
           product_limit: data.product_limit,
           is_pro: data.is_pro,
+          pro_tier_limit: data.pro_tier_limit ?? 120,
         });
       }
     } catch (err) {
@@ -383,10 +385,11 @@ export default function InventoryPage() {
   }, [fetchInventory, fetchCreditStatus]);
 
   const handleAddPress = useCallback(() => {
-    if (creditStatus.is_pro && products.length >= 120) {
+    const proLimit = creditStatus.pro_tier_limit ?? 120;
+    if (creditStatus.is_pro && products.length >= proLimit) {
       Alert.alert(
         'Upload Limit Reached',
-        'You have reached the maximum limit of 120 items on the Pro plan. To increase your limit further, please contact support or send us feedback.',
+        `You have reached the maximum limit of ${proLimit} items on the Pro plan. To increase your limit further, please contact support or send us feedback.`,
         [
           {
             text: '📧 Email Support',
