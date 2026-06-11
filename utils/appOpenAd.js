@@ -72,7 +72,10 @@ export const preloadAppOpenAd = () => {
   }
 };
 
-// Try showing the App Open Ad if loaded and user is eligible
+let activeCleanup = null;
+
+// Try showing the App Open Ad. If it is already loaded, show it immediately.
+// Otherwise, wait for it to load and show it.
 export const showAppOpenAdIfReady = async () => {
   const eligible = await isEligibleForAds();
   if (!eligible) {
@@ -82,13 +85,52 @@ export const showAppOpenAdIfReady = async () => {
   const ad = createAd();
   if (!ad) return;
 
+  if (activeCleanup) {
+    activeCleanup();
+    activeCleanup = null;
+  }
+
+  const unsubscribeLoaded = ad.addAdEventListener(
+    AdEventType.LOADED,
+    () => {
+      isAdLoaded = true;
+      isLoadInProgress = false;
+      ad.show();
+    }
+  );
+
+  const unsubscribeClosed = ad.addAdEventListener(
+    AdEventType.CLOSED,
+    () => {
+      cleanup();
+      isAdLoaded = false;
+      isLoadInProgress = false;
+      preloadAppOpenAd(); // Load the next one
+    }
+  );
+
+  const unsubscribeError = ad.addAdEventListener(
+    AdEventType.ERROR,
+    (error) => {
+      console.debug('App Open Ad error during show request:', error);
+      cleanup();
+      isAdLoaded = false;
+      isLoadInProgress = false;
+      preloadAppOpenAd();
+    }
+  );
+
+  const cleanup = () => {
+    unsubscribeLoaded();
+    unsubscribeClosed();
+    unsubscribeError();
+    activeCleanup = null;
+  };
+
+  activeCleanup = cleanup;
+
   if (isAdLoaded) {
     try {
-      const unsubClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
-        isAdLoaded = false;
-        unsubClosed();
-        preloadAppOpenAd(); // Load the next one
-      });
       ad.show();
     } catch (e) {
       console.debug('App Open Ad show error:', e);
@@ -96,7 +138,11 @@ export const showAppOpenAdIfReady = async () => {
       preloadAppOpenAd();
     }
   } else {
-    // If not loaded, preload it now
-    preloadAppOpenAd();
+    if (!isLoadInProgress) {
+      isLoadInProgress = true;
+      ad.load();
+    }
   }
+
+  return cleanup;
 };
