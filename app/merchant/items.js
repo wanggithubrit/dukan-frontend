@@ -309,6 +309,9 @@ export default function InventoryPage() {
         });
         const dashData = await dashRes.json();
         shopIdRef.current = dashData?.shop?.id;
+        if (dashData?.plan?.type) {
+          AsyncStorage.setItem('plan', dashData.plan.type).catch(err => console.debug('AsyncStorage plan save failed:', err));
+        }
       }
       if (!shopIdRef.current) return;
 

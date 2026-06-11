@@ -206,6 +206,9 @@ export default function MerchantProfile() {
         referral_code: json.referral_code || 'DUKAN777',
         referral_count: json.referral_count || 0
       });
+      if (json.plan?.type) {
+        AsyncStorage.setItem('plan', json.plan.type).catch(err => console.debug('AsyncStorage plan save failed:', err));
+      }
     } catch (error) {
       console.log(error);
     } finally {
