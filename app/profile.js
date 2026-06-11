@@ -22,17 +22,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, setTheme, THEMES } from '../utils/theme';
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
-// ── Palette ───────────────────────────────────────────────────────────────────
 const DEFAULT_C = {
-  white:     '#FFFFFF',   // ← add
-  textMuted: '#9CAAA5',   // ← add
+  white:     '#FFFFFF',
+  textMuted: '#9CAAA5',
   surface:   '#FFFFFF', 
   primary:    '#2F5D50',
   primaryLt:  '#3D7A68',
   accent:     '#7ECFB3',
-  bg:         '#F4F7F6',
+  bg:         '#FFFFFF',
   card:       '#FFFFFF',
-  cardBorder: '#E4EDE9',
+  cardBorder: '#E5E7EB',
   textHi:     '#0F1F1B',
   textMid:    '#6B8A82',
   textLo:     '#A0BAB4',
@@ -543,7 +542,7 @@ const getStyles = (C) => StyleSheet.create({
   heroAccentCircle: {
     position: 'absolute', top: -40, right: -40,
     width: 140, height: 140, borderRadius: 70,
-    backgroundColor: 'rgba(47,93,80,0.08)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
   },
   heroInner: {
     flexDirection: 'row', alignItems: 'center',
@@ -594,7 +593,7 @@ const getStyles = (C) => StyleSheet.create({
   // Avatar picker
   avatarRow:       { flexDirection: 'row', justifyContent: 'center', padding: 20 },
   avatarBtn:       { borderRadius: 36, borderWidth: 2.5, borderColor: 'transparent', position: 'relative', padding: 3 },
-  avatarBtnActive: { borderColor: C.accent, backgroundColor: 'rgba(126,207,179,0.1)' },
+  avatarBtnActive: { borderColor: C.primary, backgroundColor: 'rgba(0,0,0,0.03)' },
   avatarImg:       { width: 58, height: 58, borderRadius: 29 },
   avatarTick: {
     position: 'absolute', bottom: 1, right: 1,
