@@ -20,9 +20,10 @@ import {
   Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme, setTheme, THEMES } from '../utils/theme';
 const BASE_URL = 'https://dukan-backend-0cc9.onrender.com';
 // ── Palette ───────────────────────────────────────────────────────────────────
-const C = {
+const DEFAULT_C = {
   white:     '#FFFFFF',   // ← add
   textMuted: '#9CAAA5',   // ← add
   surface:   '#FFFFFF', 
@@ -52,6 +53,8 @@ const AVATAR_KEYS = Object.keys(AVATARS);
 // ── MenuRow ───────────────────────────────────────────────────────────────────
 function MenuRow({ icon, iconBg, iconColor, label, sublabel, onPress, last, rightEl }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const { theme: C } = useTheme();
+  const s = getStyles(C);
 
   const handlePress = useCallback(() => {
     Animated.sequence([
@@ -85,6 +88,8 @@ function MenuRow({ icon, iconBg, iconColor, label, sublabel, onPress, last, righ
 export default function Profile() {
   const router   = useRouter();
   const pathname = usePathname();
+  const { theme: C, themeKey } = useTheme();
+  const s = getStyles(C);
 
   const [user,         setUser]         = useState(null);
   const [loading,      setLoading]      = useState(true);
@@ -373,6 +378,44 @@ export default function Profile() {
           </View>
         </View>
 
+        {/* APPEARANCE MENU */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>APPEARANCE</Text>
+          <View style={s.card}>
+            <View style={{ padding: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: C.textMid, marginBottom: 12 }}>Choose Theme Accent Color</Text>
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                {Object.keys(THEMES).map((key) => {
+                  const t = THEMES[key];
+                  const active = themeKey === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={{
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        borderWidth: 3,
+                        borderColor: active ? C.primary : 'transparent',
+                        backgroundColor: t.primary,
+                        shadowColor: t.primary,
+                        shadowOpacity: active ? 0.3 : 0.1,
+                        shadowRadius: 6,
+                        elevation: 3,
+                      }}
+                      onPress={() => setTheme(key)}
+                    >
+                      {active && <Ionicons name="checkmark" size={18} color="#fff" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </View>
+
         {/* Delete Account Modal */}
         <Modal
           visible={deleteModalVisible}
@@ -509,7 +552,7 @@ export default function Profile() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
+const getStyles = (C) => StyleSheet.create({
   safe:   { flex: 1, backgroundColor: C.bg },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   scroll: { paddingBottom: 140 },
@@ -801,3 +844,4 @@ const s = StyleSheet.create({
      marginBottom: 6,
    },
 });
+};
