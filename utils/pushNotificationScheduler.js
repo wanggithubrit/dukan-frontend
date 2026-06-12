@@ -112,14 +112,13 @@ export async function scheduleShopReminders(shop) {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '⏰ Shop Opened Automatically',
-          body: 'Your scheduled opening time has arrived. Your shop is now Open.',
+          body: 'Your shop open time has reached. Automatically open.',
           categoryIdentifier: 'check_dashboard', // Offers "Check Dashboard" action
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',
         },
         trigger: {
-          type: 'daily',
           hour: trigger.hour,
           minute: trigger.minute,
           second: trigger.second,
@@ -134,14 +133,13 @@ export async function scheduleShopReminders(shop) {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '🌙 Shop Closed Automatically',
-          body: 'Your scheduled closing time has arrived. Your shop is now Closed.',
+          body: 'Your shop close time has reached. Automatically close.',
           categoryIdentifier: 'check_dashboard', // Offers "Check Dashboard" action
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',
         },
         trigger: {
-          type: 'daily',
           hour: trigger.hour,
           minute: trigger.minute,
           second: trigger.second,
