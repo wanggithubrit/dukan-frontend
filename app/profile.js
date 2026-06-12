@@ -148,7 +148,7 @@ export default function Profile() {
       setUser({ ...data, avatar: savedAvatar || data.avatar });
     } catch { /* silent */ }
     finally { setLoading(false); }
-  }, []);
+  }, [router]);
 
   const updateAvatar = useCallback(async (key) => {
     if (!key) return;

@@ -570,7 +570,7 @@ export default function InventoryPage() {
       console.log(err);
       alert('Payment error');
     }
-  }, [getToken]);
+  }, [getToken, RazorpayCheckout]);
 
   const closeModal = useCallback(() => setModalVisible(false), []);
 

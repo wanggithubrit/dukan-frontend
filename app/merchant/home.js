@@ -758,7 +758,7 @@ export default function MerchantHome() {
       if (!silent) { setLoading(false); setRefreshing(false); }
       else { setLoading(false); }
     }
-  }, [fetchCreditStatus]);
+  }, [fetchCreditStatus, router]);
 
   // Fetch Nearby Shops for Marketplace
   const fetchShops = useCallback(async (latArg, lonArg) => {
@@ -964,7 +964,7 @@ export default function MerchantHome() {
         }
       });
       return () => { task.cancel(); stopPolling(); };
-    }, [fetchData, startPolling, stopPolling, triggerAction])
+    }, [fetchData, startPolling, stopPolling, triggerAction, router])
   );
 
   const onRefresh = useCallback(async () => {

@@ -596,7 +596,7 @@ console.log('UPLOAD TOKEN:', token);
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [loading, mode, image, image2, image3, form, credits, creditsRemaining, resetForm, fetchPlan, router]);
+  }, [loading, mode, image, image2, image3, form, credits, creditsRemaining, resetForm, fetchPlan, router, notifyCustomers, plan, stats]);
 
   // ✅ Keep uploadRef in sync with the latest upload function after every render.
   useEffect(() => {

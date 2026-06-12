@@ -660,7 +660,7 @@ export default function Home() {
     } catch (e) {
       // silent fail
     }
-  }, []);
+  }, [router]);
 
   const fetchFeaturedBanners = useCallback(async (latArg, lonArg) => {
     try {
