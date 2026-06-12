@@ -5,7 +5,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -129,7 +128,22 @@ const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium
 const PREMIUM_SET = new Set(PREMIUM_PLANS.map((p) => String(p).toLowerCase()));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
+let useVideoPlayer = null;
+let VideoView = null;
+try {
+  const expoVideo = require('expo-video');
+  useVideoPlayer = expoVideo.useVideoPlayer;
+  VideoView = expoVideo.VideoView;
+} catch (err) {
+  console.debug('expo-video not linked:', err.message);
+}
+
 const VideoBannerPlayer = React.memo(({ videoUrl, style }) => {
+  if (!useVideoPlayer || !VideoView) {
+    return <View style={[style, { backgroundColor: '#000' }]} />;
+  }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const player = useVideoPlayer(videoUrl, (p) => {
     p.loop = true;
     p.muted = true;
