@@ -657,7 +657,7 @@ export default function MerchantHome() {
     let adInstance;
     try {
       const { RewardedAd, TestIds, RewardedAdEventType } = require('react-native-google-mobile-ads');
-      const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544/5224354917';
+      const adUnitId = __DEV__ ? TestIds.REWARDED : 'ca-app-pub-9676497994699972/5941082220';
       adInstance = RewardedAd.createForAdRequest(adUnitId, {
         requestNonPersonalizedAdsOnly: true,
       });
