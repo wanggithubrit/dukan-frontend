@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -128,6 +129,25 @@ const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium
 const PREMIUM_SET = new Set(PREMIUM_PLANS.map((p) => String(p).toLowerCase()));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
+const VideoBannerPlayer = React.memo(({ videoUrl, style }) => {
+  const player = useVideoPlayer(videoUrl, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  return (
+    <VideoView
+      style={style}
+      player={player}
+      allowsFullscreen={false}
+      showsPlaybackControls={false}
+      contentFit="cover"
+    />
+  );
+});
+VideoBannerPlayer.displayName = 'VideoBannerPlayer';
+
 const getImageUrl = (img) => {
   if (!img) return null;
   const isLocal = img.includes('localhost') || img.includes('127.0.0.1') || img.includes('10.14.104.206');
@@ -1548,7 +1568,19 @@ export default function MerchantHome() {
                       }}
                       style={{ width: bannerWidth, marginRight: 8 }}
                     >
-                      {b.banner_type === 'image' && b.image ? (
+                      {b.banner_type === 'video' && b.video ? (
+                        <View style={styles.bannerImageWrapMarket}>
+                          <VideoBannerPlayer
+                            videoUrl={getImageUrl(b.video)}
+                            style={styles.bannerImageMarket}
+                          />
+                          {b.link && (
+                            <View style={styles.bannerLinkIconMarket}>
+                              <Ionicons name="open-outline" size={12} color={C.white} />
+                            </View>
+                          )}
+                        </View>
+                      ) : b.banner_type === 'image' && b.image ? (
                         <View style={styles.bannerImageWrapMarket}>
                           <Image
                             source={{ uri: getImageUrl(b.image) }}
