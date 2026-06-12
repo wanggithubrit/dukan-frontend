@@ -26,7 +26,19 @@ const MAX_BACKOFF_MS = 300_000;
 
 const getImageUrl = (path) => {
   if (!path) return 'https://via.placeholder.com/150';
-  return path.startsWith('http') ? path : `${BASE_URL}${path}`;
+  const isLocal = path.includes('localhost') || path.includes('127.0.0.1') || path.includes('10.14.104.206');
+  if (path.startsWith('http://') && !isLocal) {
+    path = path.replace('http://', 'https://');
+  }
+  if (path.startsWith('http')) {
+    const isBaseProd = BASE_URL.includes('onrender.com') || BASE_URL.includes('mydukan.online');
+    if (isLocal && isBaseProd) {
+      const pathPart = path.replace(/^https?:\/\/[^\/]+/, '');
+      return `${BASE_URL}/${pathPart.replace(/^\/+/, '')}`;
+    }
+    return path;
+  }
+  return `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 /* ─── Sub-components ─── */

@@ -148,7 +148,18 @@ const PREMIUM_SET = new Set(PREMIUM_PLANS.map((p) => String(p).toLowerCase()));
 
 const getImageUrl = (img) => {
   if (!img) return null;
-  if (img.startsWith('http')) return img;
+  const isLocal = img.includes('localhost') || img.includes('127.0.0.1') || img.includes('10.14.104.206');
+  if (img.startsWith('http://') && !isLocal) {
+    img = img.replace('http://', 'https://');
+  }
+  if (img.startsWith('http')) {
+    const isBaseProd = BASE_URL.includes('onrender.com') || BASE_URL.includes('mydukan.online');
+    if (isLocal && isBaseProd) {
+      const pathPart = img.replace(/^https?:\/\/[^\/]+/, '');
+      return `${BASE_URL}/${pathPart.replace(/^\/+/, '')}`;
+    }
+    return img;
+  }
   return `${BASE_URL}/${img.replace(/^\/+/, '')}`;
 };
 

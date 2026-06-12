@@ -81,12 +81,22 @@ async function getCredentials() {
   return { lat, lon, token };
 }
 
-const getImageUrl = (img) =>
-  !img
-    ? 'https://placehold.co/400x300/e0e0e0/aaaaaa?text=Shop'
-    : img.startsWith('http')
-    ? img
-    : `${BASE_URL}${img}`;
+const getImageUrl = (img) => {
+  if (!img) return 'https://placehold.co/400x300/e0e0e0/aaaaaa?text=Shop';
+  const isLocal = img.includes('localhost') || img.includes('127.0.0.1') || img.includes('10.14.104.206');
+  if (img.startsWith('http://') && !isLocal) {
+    img = img.replace('http://', 'https://');
+  }
+  if (img.startsWith('http')) {
+    const isBaseProd = BASE_URL.includes('onrender.com') || BASE_URL.includes('mydukan.online');
+    if (isLocal && isBaseProd) {
+      const pathPart = img.replace(/^https?:\/\/[^\/]+/, '');
+      return `${BASE_URL}/${pathPart.replace(/^\/+/, '')}`;
+    }
+    return img;
+  }
+  return `${BASE_URL}${img.startsWith('/') ? '' : '/'}${img}`;
+};
 
 const getItemImages = (item) => [item?.image, item?.image2, item?.image3].filter(Boolean);
 

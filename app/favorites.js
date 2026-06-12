@@ -48,9 +48,19 @@ const C = {
  */
 const getImageUrl = (img) => {
   if (!img) return 'https://placehold.co/300x300/e0e0e0/aaaaaa?text=Shop';
-  if (img.startsWith('http')) return img;
-  if (img.startsWith('/')) return `${BASE_URL}${img}`;
-  return `${BASE_URL}/${img}`;
+  const isLocal = img.includes('localhost') || img.includes('127.0.0.1') || img.includes('10.14.104.206');
+  if (img.startsWith('http://') && !isLocal) {
+    img = img.replace('http://', 'https://');
+  }
+  if (img.startsWith('http')) {
+    const isBaseProd = BASE_URL.includes('onrender.com') || BASE_URL.includes('mydukan.online');
+    if (isLocal && isBaseProd) {
+      const pathPart = img.replace(/^https?:\/\/[^\/]+/, '');
+      return `${BASE_URL}/${pathPart.replace(/^\/+/, '')}`;
+    }
+    return img;
+  }
+  return `${BASE_URL}${img.startsWith('/') ? '' : '/'}${img}`;
 };
 
 const formatDist = (d) => {
