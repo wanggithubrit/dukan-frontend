@@ -118,7 +118,13 @@ export async function scheduleShopReminders(shop) {
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',
         },
-        trigger: {
+        trigger: Platform.OS === 'ios' ? {
+          type: 'calendar',
+          hour: trigger.hour,
+          minute: trigger.minute,
+          second: trigger.second,
+          repeats: true,
+        } : {
           type: 'daily',
           hour: trigger.hour,
           minute: trigger.minute,
@@ -138,7 +144,13 @@ export async function scheduleShopReminders(shop) {
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',
         },
-        trigger: {
+        trigger: Platform.OS === 'ios' ? {
+          type: 'calendar',
+          hour: trigger.hour,
+          minute: trigger.minute,
+          second: trigger.second,
+          repeats: true,
+        } : {
           type: 'daily',
           hour: trigger.hour,
           minute: trigger.minute,
@@ -159,6 +171,9 @@ export async function scheduleShopReminders(shop) {
         seconds: 3,
       },
     });
+
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    console.log('[Scheduler] Active Scheduled Alarms:', JSON.stringify(scheduled, null, 2));
   } catch (err) {
     console.error('Failed to schedule shop reminders:', err);
     Alert.alert('Notification Error', err?.message || String(err));
