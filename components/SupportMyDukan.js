@@ -20,6 +20,7 @@ const RazorpayCheckout = _Razorpay && (_Razorpay.default || _Razorpay);
 export default function SupportMyDukan({ platform = 'customer' }) {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
   const [thankYouVisible, setThankYouVisible] = useState(false);
   const [focused, setFocused] = useState(false);
 
@@ -88,6 +89,7 @@ export default function SupportMyDukan({ platform = 'customer' }) {
 
           const verifyData = await verifyRes.json();
           if (verifyRes.ok) {
+            setSupportModalVisible(false);
             setThankYouVisible(true);
           } else {
             Alert.alert('Verification Failed', verifyData.message || 'Could not verify payment.');
@@ -108,56 +110,88 @@ export default function SupportMyDukan({ platform = 'customer' }) {
   }, [amount, platform]);
 
   return (
-    <View style={styles.card}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.heartCircle}>
-          <Ionicons name="heart" size={18} color="#0E5C42" />
-        </View>
-        <View>
-          <Text style={styles.title}>Support mydukan</Text>
-          <Text style={styles.subtitle}>Voluntary Contribution</Text>
-        </View>
-      </View>
-
-      <Text style={styles.description}>
-        Your contribution helps us keep the platform running and free for local businesses. Every gesture of support, big or small, helps us scale our infrastructure and build better features.
-      </Text>
-
-      {/* Input container */}
-      <View style={[styles.inputContainer, focused && styles.inputContainerFocused]}>
-        <Text style={styles.currencySymbol}>₹</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-          placeholder="Enter contribution amount"
-          placeholderTextColor="#A0BAB4"
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-      </View>
-
-      <View style={styles.footerRow}>
-        <Text style={styles.hint}>Minimum contribution is ₹10. Thank you for your kind gesture.</Text>
-      </View>
-
+    <>
+      {/* Support Trigger Button on Profile page */}
       <TouchableOpacity
-        style={[styles.btn, loading && styles.btnDisabled]}
-        onPress={handleSupport}
-        disabled={loading}
+        style={styles.triggerBtn}
+        onPress={() => setSupportModalVisible(true)}
         activeOpacity={0.85}
       >
-        {loading ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <View style={styles.btnContent}>
-            <Ionicons name="heart" size={16} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={styles.btnText}>Support mydukan</Text>
-          </View>
-        )}
+        <Ionicons name="heart" size={16} color="#fff" style={{ marginRight: 6 }} />
+        <Text style={styles.triggerBtnText}>Support mydukan</Text>
       </TouchableOpacity>
+
+      {/* Main Support Form Modal */}
+      <Modal
+        visible={supportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSupportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.card}>
+            {/* Close button */}
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={() => setSupportModalVisible(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={22} color="#0F1F1B" />
+            </TouchableOpacity>
+
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.heartCircle}>
+                <Ionicons name="heart" size={18} color="#0E5C42" />
+              </View>
+              <View>
+                <Text style={styles.title}>Support mydukan</Text>
+                <Text style={styles.subtitle}>Voluntary Contribution</Text>
+              </View>
+            </View>
+
+            <Text style={styles.description}>
+              Your contribution helps us keep the platform running and free for local businesses. Every gesture of support, big or small, helps us scale our infrastructure and build better features.
+            </Text>
+
+            {/* Input container */}
+            <View style={[styles.inputContainer, focused && styles.inputContainerFocused]}>
+              <Text style={styles.currencySymbol}>₹</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="Enter contribution amount"
+                placeholderTextColor="#A0BAB4"
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.footerRow}>
+              <Text style={styles.hint}>Minimum contribution is ₹10. Thank you for your kind gesture.</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.btn, loading && styles.btnDisabled]}
+              onPress={handleSupport}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <View style={styles.btnContent}>
+                  <Ionicons name="heart" size={16} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.btnText}>Proceed to Pay</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Thank You Modal */}
       <Modal
@@ -184,28 +218,57 @@ export default function SupportMyDukan({ platform = 'customer' }) {
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  triggerBtn: {
+    height: 48,
+    backgroundColor: '#0E5C42',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    shadowColor: '#0E5C42',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+    marginTop: 16,
+  },
+  triggerBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#E4EDE9',
-    padding: 20,
-    marginTop: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 328,
     shadowColor: '#2F5D50',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+    position: 'relative',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    marginTop: 6,
   },
   heartCircle: {
     width: 36,
@@ -283,10 +346,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0E5C42',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
   },
   btnDisabled: {
     opacity: 0.7,

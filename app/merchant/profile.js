@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import SupportMyDukan from '../../components/SupportMyDukan';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import SupportMyDukan from '../../components/SupportMyDukan';
 
 import {
   ActivityIndicator,
@@ -19,7 +19,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  KeyboardAvoidingView
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import RazorpayCheckout from 'react-native-razorpay';
@@ -349,6 +350,7 @@ export default function MerchantProfile() {
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Get a premium verified badge on your shop</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Appear before free shops when distance is the same</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Boost visibility with a featured banner</Text></View>
+            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>No open app ads</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Highlight your shop with 5 cover images</Text></View>
             <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Engage customers with instant notifications</Text></View>
             <TouchableOpacity style={styles.modalBtn} onPress={handlePayment} disabled={ui.upgrading}>
@@ -435,11 +437,15 @@ export default function MerchantProfile() {
         </View>
       </Modal>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 110 }}
-        refreshControl={<RefreshControl refreshing={ui.refreshing} onRefresh={() => { setUIKey('refreshing', true); fetchDashboard(); }} />}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 110 }}
+          refreshControl={<RefreshControl refreshing={ui.refreshing} onRefresh={() => { setUIKey('refreshing', true); fetchDashboard(); }} />}
+        >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Merchant Panel</Text>
         </View>
@@ -549,6 +555,7 @@ export default function MerchantProfile() {
         </View>
 
       </ScrollView>
+    </KeyboardAvoidingView>
 
       {/* FOOTER NAV */}
       <View style={styles.footer}>

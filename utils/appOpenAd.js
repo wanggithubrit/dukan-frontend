@@ -27,7 +27,7 @@ const createAd = () => {
 export const isEligibleForAds = async () => {
   try {
     const role = await AsyncStorage.getItem('role');
-    const plan = await AsyncStorage.getItem('plan');
+    let plan = await AsyncStorage.getItem('plan');
     
     // Customers always see ads
     if (!role || role === 'customer') {
@@ -36,6 +36,28 @@ export const isEligibleForAds = async () => {
     
     // Merchants see ads only if they are on the free plan
     if (role === 'merchant') {
+      try {
+        const userId = await AsyncStorage.getItem('user_id');
+        const token = await AsyncStorage.getItem('token') || await AsyncStorage.getItem('access_token');
+        if (userId && token) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          
+          const res = await fetch(`https://dukan-backend-0cc9.onrender.com/api/merchant/dashboard/${userId}/`, {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          
+          if (res.ok) {
+            const data = await res.json();
+            plan = data?.plan?.type || 'free';
+            await AsyncStorage.setItem('plan', plan);
+          }
+        }
+      } catch (err) {
+        console.debug('Background plan fetch failed in AppOpenAd:', err.message);
+      }
       return plan !== 'pro';
     }
     

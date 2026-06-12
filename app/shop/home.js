@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import AppUpdateModal from '../../components/AppUpdateModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
@@ -8,20 +7,22 @@ import { usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  Linking,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Animated,
+    Dimensions,
+    Linking,
+    Platform,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AppUpdateModal from '../../components/AppUpdateModal';
+import { useTheme, getTheme } from '../../utils/theme';
 
 import AdBanner from '../../components/AdBanner';
 import { registerForPushNotificationsAsync } from '../../utils/pushNotifications';
@@ -71,6 +72,8 @@ const C = {
   overlay: 'rgba(0,0,0,0.35)',
   overlayLight: 'rgba(0,0,0,0.18)',
 };
+
+let s = getStyles(getTheme());
 
 const avatars = {
   male_1: require('../../assets/avatars/man.png'),
@@ -573,6 +576,8 @@ const SectionHeader = ({ title, count, countColor, dotColor, subtitle }) => (
 export default function Home() {
   const router = useRouter();
   const pathname = usePathname();
+  const { theme: themeObj } = useTheme();
+  s = getStyles(themeObj);
 
   // User & Location
   const [user, setUser] = useState(null);
@@ -1497,10 +1502,10 @@ export default function Home() {
 // STYLES
 // ═══════════════════════════════════════════════════════════════════════════
 
-const s = StyleSheet.create({
+function getStyles(theme) { Object.assign(C, theme || {}); return StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: C.surface,
     marginTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
 
@@ -1584,7 +1589,7 @@ const s = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: C.danger,
     borderWidth: 2,
-    borderColor: C.bg,
+    borderColor: C.surface,
   },
 
   avatarRing: {
@@ -2120,7 +2125,7 @@ const s = StyleSheet.create({
 
   bannerImage: {
     width: '100%',
-    height: 128,
+    aspectRatio: 16 / 5,
     borderRadius: 22,
   },
 
@@ -2134,7 +2139,7 @@ const s = StyleSheet.create({
   },
 
   bannerTextCard: {
-    height: 128,
+    aspectRatio: 16 / 5,
     borderRadius: 22,
     padding: 22,
     justifyContent: 'center',
@@ -2313,4 +2318,4 @@ const s = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-});
+}); }

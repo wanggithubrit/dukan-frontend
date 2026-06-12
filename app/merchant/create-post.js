@@ -514,7 +514,8 @@ console.log('UPLOAD TOKEN:', token);
       if (mode === 'item') {
         fd.append('name', form.name.trim());
         if (form.price) fd.append('price', form.price);
-        fd.append('notify_customers', notifyCustomers ? 'true' : 'false');
+        const isPro = plan?.type === 'pro';
+        fd.append('notify_customers', (isPro && notifyCustomers) ? 'true' : 'false');
       }
       if (mode === 'offer') {
         if (form.discount) fd.append('discount', form.discount);
@@ -792,15 +793,17 @@ console.log('UPLOAD TOKEN:', token);
                         keyboardType="decimal-pad"
                         hint="Enter selling price in rupees"
                       />
-                      <View style={styles.switchRow}>
-                        <Text style={styles.switchLabel}>Notify Customers</Text>
-                        <Switch
-                          value={notifyCustomers}
-                          onValueChange={setNotifyCustomers}
-                          trackColor={{ false: '#767577', true: '#2F5D50' }}
-                          thumbColor={notifyCustomers ? '#fff' : '#f4f3f4'}
-                        />
-                      </View>
+                      {plan?.type === 'pro' && (
+                        <View style={styles.switchRow}>
+                          <Text style={styles.switchLabel}>Notify Customers</Text>
+                          <Switch
+                            value={notifyCustomers}
+                            onValueChange={setNotifyCustomers}
+                            trackColor={{ false: '#767577', true: '#2F5D50' }}
+                            thumbColor={notifyCustomers ? '#fff' : '#f4f3f4'}
+                          />
+                        </View>
+                      )}
                     </>
                   )}
 

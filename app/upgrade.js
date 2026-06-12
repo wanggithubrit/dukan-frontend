@@ -55,6 +55,7 @@ export default function Upgrade() {
         });
 
         if (verifyRes.ok) {
+          AsyncStorage.setItem('plan', 'pro').catch(err => console.debug('AsyncStorage plan update failed:', err));
           Alert.alert('Success 🎉', 'You are now Pro!');
         } else {
           Alert.alert('Verification Failed', 'Payment could not be verified.');

@@ -756,7 +756,7 @@ const ShopListHeader = memo(({
   reportStatus,
 }) => {
   const hasPhone    = !!shop.phone;
-  const hasWhatsApp = !!(shop.phone || shop.whatsapp_number);
+  const hasWhatsApp = !!shop.whatsapp_number;
 
   return (
     <>
@@ -826,7 +826,7 @@ const ShopListHeader = memo(({
             color={C.call}
             gradient={[C.primaryMid, C.primary]}
             onPress={callShop}
-            disabled={!hasPhone}
+            disabled={!hasPhone || !shop.is_open}
           />
           <ActionBtn
             icon="logo-whatsapp"
@@ -834,7 +834,7 @@ const ShopListHeader = memo(({
             color={C.whatsapp}
             gradient={['#43E07A', '#25D366']}
             onPress={openWhatsApp}
-            disabled={!hasWhatsApp}
+            disabled={!hasWhatsApp || !shop.is_open}
           />
           <ActionBtn
             icon="navigate-sharp"
@@ -864,11 +864,10 @@ const ShopListHeader = memo(({
             <Sparkle size={5} color={C.accent} delay={200} />
           </View>
         </View>
-        {isPro && banners?.length > 0 ? (
+        {isPro && banners?.length > 0 && (
           <BannerCarousel banners={banners} />
-        ) : (
-          <AdBanner />
         )}
+        <AdBanner />
       </View>
 
       <View style={[s.section, { marginBottom: 0 }]}>
@@ -987,12 +986,12 @@ export default function ShopDetail() {
   }, [shop?.phone]);
 
   const openWhatsApp = useCallback(() => {
-    let phone = shop?.whatsapp_number || shop?.phone;
+    let phone = shop?.whatsapp_number;
     if (!phone) return;
     phone = phone.replace(/\D/g, '');
     if (!phone.startsWith('91')) phone = '91' + phone;
     Linking.openURL(`https://wa.me/${phone}`);
-  }, [shop?.whatsapp_number, shop?.phone]);
+  }, [shop?.whatsapp_number]);
 
   const openMap = useCallback(() => {
     if (shop?.latitude)
@@ -1418,9 +1417,9 @@ const s = StyleSheet.create({
   },
   proBadgeText: { fontSize: 9, fontWeight: '800', color: C.gold, letterSpacing: 0.8, includeFontPadding: false },
 
-  offerImage: { width: '100%', height: 120, borderRadius: 20 },
+  offerImage: { width: '100%', aspectRatio: 16 / 5, borderRadius: 20 },
   offerCard: {
-    height: 120, borderRadius: 20, padding: 20,
+    aspectRatio: 16 / 5, borderRadius: 20, padding: 20,
     flexDirection: 'row', alignItems: 'center', overflow: 'hidden',
   },
   offerDecorCircle: {

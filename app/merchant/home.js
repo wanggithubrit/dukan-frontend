@@ -732,7 +732,7 @@ export default function MerchantHome() {
         fetch(`${BASE_URL}/api/merchant/banners/`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (dashRes.status === 401) {
-        await AsyncStorage.multiRemove(['token', 'user_id', 'user_role']);
+        await AsyncStorage.clear();
         router.replace('/login');
         return;
       }
@@ -745,6 +745,9 @@ export default function MerchantHome() {
           setStats({ posts: postsData.length, followers: data.stats?.followers ?? 0, views: data.stats?.views ?? 0 });
           setBanners(Array.isArray(bData) ? bData : []);
         });
+        if (data?.plan?.type) {
+          AsyncStorage.setItem('plan', data.plan.type).catch(err => console.debug('AsyncStorage plan save failed:', err));
+        }
       }
       // Also fetch merchant credits status
       await fetchCreditStatus();
@@ -2634,7 +2637,7 @@ const styles = StyleSheet.create({
   },
   bannerImageMarket: {
     width: '100%',
-    height: 128,
+    aspectRatio: 16 / 5,
     borderRadius: 22,
   },
   bannerLinkIconMarket: {
@@ -2646,7 +2649,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   bannerTextCardMarket: {
-    height: 128,
+    aspectRatio: 16 / 5,
     borderRadius: 22,
     padding: 22,
     justifyContent: 'center',

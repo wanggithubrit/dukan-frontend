@@ -17,7 +17,8 @@ import {
   TouchableOpacity,
   View,
   Modal,
-  Alert
+  Alert,
+  KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, setTheme, THEMES } from '../utils/theme';
@@ -49,10 +50,17 @@ const AVATARS = {
 };
 const AVATAR_KEYS = Object.keys(AVATARS);
 
-// ── MenuRow ───────────────────────────────────────────────────────────────────
 function MenuRow({ icon, iconBg, iconColor, label, sublabel, onPress, last, rightEl }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const { theme: C } = useTheme();
+  const { theme: activeTheme } = useTheme();
+  const C = {
+    ...DEFAULT_C,
+    ...activeTheme,
+    bg: '#FFFFFF',
+    card: '#FFFFFF',
+    cardBorder: '#E5E7EB',
+    primaryLt: '#F3F4F6',
+  };
   const s = getStyles(C);
 
   const handlePress = useCallback(() => {
@@ -87,7 +95,15 @@ function MenuRow({ icon, iconBg, iconColor, label, sublabel, onPress, last, righ
 export default function Profile() {
   const router   = useRouter();
   const pathname = usePathname();
-  const { theme: C, themeKey } = useTheme();
+  const { theme: activeTheme, themeKey } = useTheme();
+  const C = {
+    ...DEFAULT_C,
+    ...activeTheme,
+    bg: '#FFFFFF',
+    card: '#FFFFFF',
+    cardBorder: '#E5E7EB',
+    primaryLt: '#F3F4F6',
+  };
   const s = getStyles(C);
 
   const [user,         setUser]         = useState(null);
@@ -225,11 +241,15 @@ export default function Profile() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <Animated.ScrollView
-        style={{ opacity: fadeAnim }}
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, backgroundColor: '#FFFFFF' }}
       >
+        <Animated.ScrollView
+          style={{ opacity: fadeAnim, backgroundColor: '#FFFFFF' }}
+          contentContainerStyle={[s.scroll, { backgroundColor: '#FFFFFF' }]}
+          showsVerticalScrollIndicator={false}
+        >
         {/* TOP BAR */}
         <View style={s.topBar}>
           <Text style={s.screenTitle}>My Profile</Text>
@@ -480,6 +500,7 @@ export default function Profile() {
 
         <Text style={s.version}>dukanpersonal316@gmail.com</Text>
       </Animated.ScrollView>
+    </KeyboardAvoidingView>
 
       <View style={s.bottomNav}>
         {[
