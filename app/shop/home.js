@@ -161,8 +161,16 @@ const VideoBannerPlayer = React.memo(({ videoUrl, style }) => {
   const player = useVideoPlayer(videoUrl, (p) => {
     p.loop = true;
     p.muted = true;
-    p.play();
   });
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (player) {
+      player.loop = true;
+      player.muted = true;
+      player.play();
+    }
+  }, [player]);
 
   return (
     <VideoView
