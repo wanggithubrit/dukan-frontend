@@ -104,6 +104,7 @@ export async function scheduleShopReminders(shop) {
         content: {
           title: '⏰ Shop Opened Automatically',
           body: 'Your scheduled opening time has arrived. Your shop is now Open.',
+          categoryIdentifier: 'shop_closing', // Offers "Close Shop" action
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',
@@ -125,6 +126,7 @@ export async function scheduleShopReminders(shop) {
         content: {
           title: '🌙 Shop Closed Automatically',
           body: 'Your scheduled closing time has arrived. Your shop is now Closed.',
+          categoryIdentifier: 'shop_opening', // Offers "Open Shop" action
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',
