@@ -119,6 +119,7 @@ export async function scheduleShopReminders(shop) {
           channelId: 'default',
         },
         trigger: {
+          type: 'calendar',
           hour: trigger.hour,
           minute: trigger.minute,
           second: trigger.second,
@@ -140,6 +141,7 @@ export async function scheduleShopReminders(shop) {
           channelId: 'default',
         },
         trigger: {
+          type: 'calendar',
           hour: trigger.hour,
           minute: trigger.minute,
           second: trigger.second,
