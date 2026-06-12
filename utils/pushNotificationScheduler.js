@@ -31,6 +31,15 @@ export async function setupNotificationCategories() {
         options: { isDestructive: true, isAuthenticationRequired: false },
       },
     ]);
+
+    await Notifications.setNotificationCategoryAsync('check_dashboard', [
+      {
+        identifier: 'CHECK_DASHBOARD',
+        buttonTitle: 'Check Dashboard',
+        buttonTitleShort: 'Check Dashboard',
+        options: { isDestructive: false, isAuthenticationRequired: false },
+      },
+    ]);
   } catch (err) {
     console.debug('Failed to set notification categories:', err);
   }
@@ -104,7 +113,7 @@ export async function scheduleShopReminders(shop) {
         content: {
           title: '⏰ Shop Opened Automatically',
           body: 'Your scheduled opening time has arrived. Your shop is now Open.',
-          categoryIdentifier: 'shop_closing', // Offers "Close Shop" action
+          categoryIdentifier: 'check_dashboard', // Offers "Check Dashboard" action
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',
@@ -126,7 +135,7 @@ export async function scheduleShopReminders(shop) {
         content: {
           title: '🌙 Shop Closed Automatically',
           body: 'Your scheduled closing time has arrived. Your shop is now Closed.',
-          categoryIdentifier: 'shop_opening', // Offers "Open Shop" action
+          categoryIdentifier: 'check_dashboard', // Offers "Check Dashboard" action
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           channelId: 'default',

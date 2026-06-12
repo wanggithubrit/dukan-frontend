@@ -166,9 +166,15 @@ export default function Index() {
             const categoryId = response.notification.request.content.categoryIdentifier;
 
             if (actionId && actionId !== 'expo.modules.notifications.actions.DEFAULT') {
-              handleNotificationAction(actionId, categoryId, 'https://dukan-backend-0cc9.onrender.com');
+              if (actionId === 'CHECK_DASHBOARD') {
+                router.push('/merchant/home');
+              } else {
+                handleNotificationAction(actionId, categoryId, 'https://dukan-backend-0cc9.onrender.com');
+              }
             } else {
-              if (categoryId === 'shop_opening') {
+              if (categoryId === 'check_dashboard') {
+                router.push('/merchant/home');
+              } else if (categoryId === 'shop_opening') {
                 router.push('/merchant/home?triggerAction=open');
               } else if (categoryId === 'shop_closing') {
                 router.push('/merchant/home?triggerAction=close');
