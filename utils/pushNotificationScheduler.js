@@ -119,11 +119,9 @@ export async function scheduleShopReminders(shop) {
           channelId: 'default',
         },
         trigger: {
-          type: 'calendar',
+          type: 'daily',
           hour: trigger.hour,
           minute: trigger.minute,
-          second: trigger.second,
-          repeats: true,
         },
       });
     }
@@ -141,11 +139,9 @@ export async function scheduleShopReminders(shop) {
           channelId: 'default',
         },
         trigger: {
-          type: 'calendar',
+          type: 'daily',
           hour: trigger.hour,
           minute: trigger.minute,
-          second: trigger.second,
-          repeats: true,
         },
       });
     }
