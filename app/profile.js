@@ -18,7 +18,8 @@ import {
   View,
   Modal,
   Alert,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, setTheme, THEMES } from '../utils/theme';
@@ -108,6 +109,7 @@ export default function Profile() {
 
   const [user,         setUser]         = useState(null);
   const [loading,      setLoading]      = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback,     setFeedback]     = useState('');
   const [sending,      setSending]      = useState(false);
@@ -117,6 +119,12 @@ export default function Profile() {
 
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  }, [fetchProfile]);
 
   useEffect(() => {
     fetchProfile();
@@ -249,6 +257,14 @@ export default function Profile() {
           style={{ opacity: fadeAnim, backgroundColor: '#FFFFFF' }}
           contentContainerStyle={[s.scroll, { backgroundColor: '#FFFFFF' }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={C.primary}
+              colors={[C.primary]}
+            />
+          }
         >
         {/* TOP BAR */}
         <View style={s.topBar}>

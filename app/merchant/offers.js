@@ -7,6 +7,7 @@ import {
   Alert,
   FlatList,
   Image,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,6 +23,7 @@ export default function Offers() {
 
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
   /* ---------------- FETCH ---------------- */
@@ -41,6 +43,21 @@ export default function Offers() {
       console.log(err);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const user_id = await AsyncStorage.getItem('user_id');
+      if (!user_id) return;
+      const res = await fetch(`${BASE_URL}/api/merchant/dashboard/${user_id}/`);
+      const data = await res.json();
+      setOffers(data.banners || []);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
@@ -124,6 +141,14 @@ export default function Offers() {
           data={offers}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#2F5D50"
+              colors={['#2F5D50']}
+            />
+          }
 
           initialNumToRender={5}
           maxToRenderPerBatch={5}

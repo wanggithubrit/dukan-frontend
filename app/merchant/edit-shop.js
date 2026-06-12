@@ -11,6 +11,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  RefreshControl,
   StatusBar,
   StyleSheet,
   Switch,
@@ -29,6 +30,7 @@ export default function EditShop() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [coords, setCoords] = useState(null);
   const [gpsError, setGpsError] = useState(null);
@@ -163,6 +165,12 @@ export default function EditShop() {
     }
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchShop();
+    setRefreshing(false);
+  }, [fetchShop]);
+
   useEffect(() => {
     fetchShop();
     getLocation();
@@ -249,6 +257,14 @@ export default function EditShop() {
         style={styles.container} 
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#2F5D50"
+            colors={['#2F5D50']}
+          />
+        }
       >
         <Text style={styles.label}>Shop Name</Text>
         <TextInput
