@@ -1540,7 +1540,7 @@ export default function MerchantHome() {
                       {b.banner_type === 'image' && b.image ? (
                         <View style={styles.bannerImageWrapMarket}>
                           <Image
-                            source={{ uri: b.image }}
+                            source={{ uri: getImageUrl(b.image) }}
                             style={styles.bannerImageMarket}
                             resizeMode="cover"
                           />

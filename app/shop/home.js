@@ -1284,7 +1284,7 @@ export default function Home() {
                   {b.banner_type === 'image' && b.image ? (
                     <View style={s.bannerImageWrap}>
                       <Image
-                        source={{ uri: b.image }}
+                        source={{ uri: getImageUrl(b.image) }}
                         style={s.bannerImage}
                         resizeMode="cover"
                       />
