@@ -479,8 +479,8 @@ console.log('UPLOAD TOKEN:', token);
       return Alert.alert('Photo Required', 'Please add a banner image to continue.');
     if (mode === 'item' && !form.name.trim())
       return Alert.alert('Item Name Required', 'Please enter the item name.');
-    if (mode === 'offer' && !form.title.trim())
-      return Alert.alert('Offer Title Required', 'Please enter the offer title.');
+    if (mode === 'offer' && !image && !form.title.trim())
+      return Alert.alert('Offer Title Required', 'Please add an image or enter a title.');
 
     console.log('UPLOAD URL:', `${BASE_URL}${ENDPOINTS[mode]}`);
     console.log('TOKEN EXISTS:', !!token);
