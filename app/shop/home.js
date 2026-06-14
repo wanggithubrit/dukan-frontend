@@ -335,9 +335,12 @@ const ShopCard = React.memo(({ item, onPress }) => {
   const imageUri = getImageUrl(item.cover_image || item.image);
   const placeholderBg = getCategoryPlaceholderColor(item.category);
 
+  const isProPlus = planNorm === 'pro_plus';
+  const isPro = planNorm === 'pro';
+
   return (
     <PressScale style={{ width: CARD_WIDTH }} onPress={() => onPress(item.id)}>
-      <View style={[s.card, isPremium && s.cardPremium]}>
+      <View style={[s.card, isProPlus && s.cardProPlus, isPro && s.cardPro]}>
         {/* Image Section */}
         <View style={s.cardImageWrap}>
           {imageUri ? (
@@ -503,9 +506,12 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
   const imageUri = getImageUrl(item.cover_image || item.image);
   const placeholderBg = getCategoryPlaceholderColor(item.category);
 
+  const isProPlus = planNorm === 'pro_plus';
+  const isPro = planNorm === 'pro';
+
   return (
     <PressScale onPress={() => onPress(item.id)} activeScale={0.95}>
-      <View style={[s.openNowCard, isPremium && s.cardPremium]}>
+      <View style={[s.openNowCard, isProPlus && s.cardProPlus, isPro && s.cardPro]}>
         <View style={{ position: 'relative' }}>
           {imageUri ? (
             <>
@@ -1888,7 +1894,15 @@ function getStyles(theme) { Object.assign(C, theme || {}); return StyleSheet.cre
     elevation: 4,
   },
 
-  cardPremium: {
+  cardPro: {
+    borderWidth: 2,
+    borderColor: '#2F5D50',
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+
+  cardProPlus: {
     borderWidth: 2.2,
     borderColor: '#C084FC',
     shadowColor: '#C084FC',
