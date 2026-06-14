@@ -1082,7 +1082,8 @@ export default function MerchantHome() {
         if (!s.delivery_available) {
           return false;
         }
-        if (s.delivery_range != null && s.distance != null && Number(s.distance) > Number(s.delivery_range)) {
+        const rangeLimit = s.delivery_range != null && s.delivery_range !== '' ? Number(s.delivery_range) : null;
+        if (rangeLimit !== null && s.distance != null && Number(s.distance) > rangeLimit) {
           return false;
         }
       }
@@ -1100,7 +1101,8 @@ export default function MerchantHome() {
       shops.forEach((shop) => {
         if (onlyDeliverable) {
           if (!shop.delivery_available) return;
-          if (shop.delivery_range != null && shop.distance != null && Number(shop.distance) > Number(shop.delivery_range)) {
+          const rangeLimit = shop.delivery_range != null && shop.delivery_range !== '' ? Number(shop.delivery_range) : null;
+          if (rangeLimit !== null && shop.distance != null && Number(shop.distance) > rangeLimit) {
             return;
           }
         }

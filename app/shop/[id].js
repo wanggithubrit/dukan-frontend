@@ -1336,7 +1336,7 @@ export default function ShopDetail() {
 
   const HEADER_TOP = insets.top + 8;
   const isPro = shop?.plan && ['pro', 'pro_plus'].includes(shop.plan.toLowerCase());
-  const isProPlus = shop?.plan && ['pro', 'pro_plus'].includes(shop.plan.toLowerCase());
+  const isProPlus = shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus';
 
   if (loading && !shop) return <LoadingScreen />;
   if (!shop && error) return <ErrorScreen message={error} onRetry={onRefresh} />;

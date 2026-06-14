@@ -63,20 +63,34 @@ export default function MerchantOrders() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const [token, user_id] = await Promise.all([
+        AsyncStorage.getItem('access_token'),
+        AsyncStorage.getItem('user_id')
+      ]);
       
-      const userRes = await fetch(`${BASE_URL}/api/user/`, {
+      if (!user_id) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      const userRes = await fetch(`${BASE_URL}/api/merchant/dashboard/${user_id}/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (userRes.ok) {
-        const userData = await userRes.json();
-        setPlan({ type: userData.shop?.plan || 'free' });
+        const dashboardData = await userRes.json();
+        const planType = dashboardData.plan?.type || 'free';
+        setPlan({ type: planType });
         
-        if (!['pro', 'pro_plus'].includes(userData.shop?.plan)) {
+        if (!['pro', 'pro_plus'].includes(planType)) {
           setLoading(false);
           setRefreshing(false);
           return;
         }
+      } else {
+        setLoading(false);
+        setRefreshing(false);
+        return;
       }
 
       const ordersRes = await fetch(`${BASE_URL}/api/merchant/orders/`, {
