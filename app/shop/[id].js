@@ -639,7 +639,7 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
 
                 {item.description ? <Text style={s.modalDesc}>{item.description}</Text> : null}
                 
-                {shop?.plan && ['pro', 'pro_plus'].includes(shop.plan.toLowerCase()) && (
+                {shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' && (
                   <TouchableOpacity
                     style={[s.modalOrderBtn, item.quantity_status === 'out' && { opacity: 0.6 }]}
                     onPress={() => {

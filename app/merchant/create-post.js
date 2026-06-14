@@ -531,7 +531,7 @@ console.log('UPLOAD TOKEN:', token);
         if (form.discount) fd.append('discount', form.discount);
         if (form.title)    fd.append('title',    form.title);
         if (form.subtitle) fd.append('subtitle', form.subtitle);
-        if (detailImage && detailImage.uri && ['pro', 'pro_plus'].includes(plan?.type)) {
+        if (detailImage && detailImage.uri && plan?.type === 'pro_plus') {
           const filename = detailImage.uri.split('/').pop() || 'detail_photo.jpg';
           const ext = filename.split('.').pop()?.toLowerCase();
           let mime = 'image/jpeg';
@@ -740,7 +740,7 @@ console.log('UPLOAD TOKEN:', token);
                   </View>
                 ) : (
                   <View>
-                    {mode === 'offer' && ['pro', 'pro_plus'].includes(plan?.type) ? (
+                    {mode === 'offer' && plan?.type === 'pro_plus' ? (
                       <View style={{ gap: 16 }}>
                         {/* Minimal Banner */}
                         <View>
