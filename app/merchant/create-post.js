@@ -340,7 +340,7 @@ export default function CreatePost() {
 
   const { plan, stats, credits } = planData;
   const activeMode         = useMemo(() => MODES.find(m => m.key === mode), [mode]);
-  const showPhotoStep      = !activeMode.hidePhoto;
+  const showPhotoStep      = !activeMode.hidePhoto || (mode === 'offer' && ['pro', 'pro_plus'].includes(plan?.type));
   const creditsRemaining   = useMemo(() => credits?.available_credits ?? 0, [credits]);
   const proLimit = credits?.pro_tier_limit ?? 120;
   const isProLimitReached = useMemo(() => credits?.is_pro && (stats?.items ?? 0) >= proLimit, [credits, stats, proLimit]);
