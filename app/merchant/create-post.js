@@ -369,10 +369,21 @@ export default function CreatePost() {
       { done: !!form.price.trim(), label: 'Price entered (₹)' },
       { done: !!image,             label: 'Photo added (optional)' },
     ];
-    return [
-      { done: !!form.title.trim(),    label: 'Offer title entered' },
-      { done: !!form.discount.trim(), label: 'Discount % or amount set' },
-    ];
+    if (mode === 'offer') {
+      if (image) {
+        return [
+          { done: true, label: 'Banner image added' },
+          { done: !!form.title.trim(), label: 'Offer title entered (optional)' },
+          { done: !!form.discount.trim(), label: 'Discount set (optional)' },
+        ];
+      } else {
+        return [
+          { done: !!form.title.trim(), label: 'Offer title entered' },
+          { done: !!form.discount.trim(), label: 'Discount set (optional)' },
+        ];
+      }
+    }
+    return [];
   }, [mode, form.name, form.price, form.title, form.discount, image]);
 
   const canPublish = useMemo(
@@ -386,6 +397,17 @@ export default function CreatePost() {
   }), [checks]);
 
   const pickImageIndexed = useCallback((setImageFn) => {
+    let aspect = [4, 3];
+    let allowsEditing = true;
+
+    if (mode === 'offer') {
+      if (setImageFn === setImage) {
+        aspect = [16, 5]; // 1600x500 px aspect ratio
+      } else if (setImageFn === setDetailImage) {
+        aspect = undefined; // Full crop (no fixed aspect)
+      }
+    }
+
     Alert.alert('Add Photo', 'Where do you want to pick the image from?', [
       {
         text: '📷  Camera',
@@ -394,7 +416,9 @@ export default function CreatePost() {
           if (!perm.granted)
             return Alert.alert('Permission Needed', 'Please allow camera access in Settings.');
           const result = await ImagePicker.launchCameraAsync({
-            quality: 1.0, allowsEditing: true, aspect: [4, 3],
+            quality: 1.0, 
+            allowsEditing: true, 
+            ...(aspect ? { aspect } : {}),
           });
           if (!result.canceled && result.assets?.length > 0) {
             try {
@@ -410,7 +434,9 @@ export default function CreatePost() {
         text: '🖼️  Photo Gallery',
         onPress: async () => {
           const result = await ImagePicker.launchImageLibraryAsync({
-            quality: 1.0, allowsEditing: true, aspect: [4, 3],
+            quality: 1.0, 
+            allowsEditing: true, 
+            ...(aspect ? { aspect } : {}),
           });
           if (!result.canceled && result.assets?.length > 0) {
             try {
@@ -424,7 +450,7 @@ export default function CreatePost() {
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
-  }, []);
+  }, [mode]);
 
   const removeImage = useCallback(() => {
     Alert.alert('Remove Photo', 'Remove this image?', [
