@@ -2446,9 +2446,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   cardPremium: {
-    borderWidth: 2,
-    borderColor: C.primary,
-    shadowOpacity: 0.18,
+    borderWidth: 2.2,
+    borderColor: '#C084FC',
+    shadowColor: '#C084FC',
+    shadowOpacity: 0.22,
     shadowRadius: 20,
     elevation: 8,
   },
