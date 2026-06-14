@@ -256,7 +256,8 @@ export default function CreatePost() {
 
   const [mode,    setModeState] = useState('cover');
   const [image,   setImage]     = useState(null);
-  const [image2,  setImage2]    = useState(null);
+  const [image4,  setImage4]    = useState(null);
+  const [detailImage, setDetailImage] = useState(null);
   const [image3,  setImage3]    = useState(null);
   const [loading, setLoading]   = useState(false);
   const [notifyCustomers, setNotifyCustomers] = useState(true);
@@ -431,10 +432,19 @@ export default function CreatePost() {
     ]);
   }, []);
 
+  const removeDetailImage = useCallback(() => {
+    Alert.alert('Remove Photo', 'Remove this detail image?', [
+      { text: 'Remove', style: 'destructive', onPress: () => setDetailImage(null) },
+      { text: 'Keep', style: 'cancel' },
+    ]);
+  }, []);
+
   const resetForm = useCallback(() => {
     setImage(null);
     setImage2(null);
     setImage3(null);
+    setImage4(null);
+    setDetailImage(null);
     setNotifyCustomers(true);
     dispatch({ type: 'RESET' });
   }, []);
@@ -521,6 +531,14 @@ console.log('UPLOAD TOKEN:', token);
         if (form.discount) fd.append('discount', form.discount);
         if (form.title)    fd.append('title',    form.title);
         if (form.subtitle) fd.append('subtitle', form.subtitle);
+        if (detailImage && detailImage.uri && ['pro', 'pro_plus'].includes(plan?.type)) {
+          const filename = detailImage.uri.split('/').pop() || 'detail_photo.jpg';
+          const ext = filename.split('.').pop()?.toLowerCase();
+          let mime = 'image/jpeg';
+          if (ext === 'png') mime = 'image/png';
+          if (ext === 'webp') mime = 'image/webp';
+          fd.append('detail_image', { uri: detailImage.uri, name: filename, type: mime });
+        }
       }
 
       const res  = await fetch(`${BASE_URL}${ENDPOINTS[mode]}`, {
@@ -596,7 +614,7 @@ console.log('UPLOAD TOKEN:', token);
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [loading, mode, image, image2, image3, form, credits, creditsRemaining, resetForm, fetchPlan, router, notifyCustomers, plan, stats]);
+  }, [loading, mode, image, image2, image3, form, credits, creditsRemaining, resetForm, fetchPlan, router, notifyCustomers, plan, stats, detailImage]);
 
   // ✅ Keep uploadRef in sync with the latest upload function after every render.
   useEffect(() => {
@@ -722,32 +740,104 @@ console.log('UPLOAD TOKEN:', token);
                   </View>
                 ) : (
                   <View>
-                    <TouchableOpacity
-                      style={styles.imagePicker}
-                      onPress={() => pickImageIndexed(setImage)}
-                      activeOpacity={0.82}
-                    >
-                      {image ? (
+                    {mode === 'offer' && ['pro', 'pro_plus'].includes(plan?.type) ? (
+                      <View style={{ gap: 16 }}>
+                        {/* Minimal Banner */}
                         <View>
-                          <Image
-                            source={{ uri: image.uri }}
-                            style={styles.imagePreview}
-                            fadeDuration={0}
-                          />
-                          <View style={styles.imageOverlay}>
-                            <TouchableOpacity style={styles.imageChangeBtn} onPress={() => pickImageIndexed(setImage)}>
-                              <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
-                              <Text style={styles.imageChangeBtnText}>Change</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
-                              <Ionicons name="trash-outline" size={14} color="#EF4444" />
-                            </TouchableOpacity>
-                          </View>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: C.textSoft, marginBottom: 6 }}>
+                            Minimal Banner Image (1600x500 px)
+                          </Text>
+                          <TouchableOpacity
+                            style={[styles.imagePicker, { height: 120 }]}
+                            onPress={() => pickImageIndexed(setImage)}
+                            activeOpacity={0.82}
+                          >
+                            {image ? (
+                              <View style={{ width: '100%', height: '100%' }}>
+                                <Image
+                                  source={{ uri: image.uri }}
+                                  style={{ width: '100%', height: '100%', borderRadius: 12 }}
+                                  resizeMode="cover"
+                                  fadeDuration={0}
+                                />
+                                <View style={styles.imageOverlay}>
+                                  <TouchableOpacity style={styles.imageChangeBtn} onPress={() => pickImageIndexed(setImage)}>
+                                    <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
+                                    <Text style={styles.imageChangeBtnText}>Change</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
+                                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            ) : (
+                              <ImagePlaceholder optional={false} />
+                            )}
+                          </TouchableOpacity>
                         </View>
-                      ) : (
-                        <ImagePlaceholder optional={!activeMode.requiresImage} />
-                      )}
-                    </TouchableOpacity>
+
+                        {/* Detailed Banner */}
+                        <View>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: C.textSoft, marginBottom: 6 }}>
+                            Detail Banner Image (Optional - Shown on Press)
+                          </Text>
+                          <TouchableOpacity
+                            style={[styles.imagePicker, { height: 120 }]}
+                            onPress={() => pickImageIndexed(setDetailImage)}
+                            activeOpacity={0.82}
+                          >
+                            {detailImage ? (
+                              <View style={{ width: '100%', height: '100%' }}>
+                                <Image
+                                  source={{ uri: detailImage.uri }}
+                                  style={{ width: '100%', height: '100%', borderRadius: 12 }}
+                                  resizeMode="contain"
+                                  fadeDuration={0}
+                                />
+                                <View style={styles.imageOverlay}>
+                                  <TouchableOpacity style={styles.imageChangeBtn} onPress={() => pickImageIndexed(setDetailImage)}>
+                                    <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
+                                    <Text style={styles.imageChangeBtnText}>Change</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeDetailImage}>
+                                    <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            ) : (
+                              <ImagePlaceholder optional={true} />
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.imagePicker}
+                        onPress={() => pickImageIndexed(setImage)}
+                        activeOpacity={0.82}
+                      >
+                        {image ? (
+                          <View>
+                            <Image
+                              source={{ uri: image.uri }}
+                              style={styles.imagePreview}
+                              fadeDuration={0}
+                            />
+                            <View style={styles.imageOverlay}>
+                              <TouchableOpacity style={styles.imageChangeBtn} onPress={() => pickImageIndexed(setImage)}>
+                                <Ionicons name="camera-outline" size={14} color={C.textPrimary} />
+                                <Text style={styles.imageChangeBtnText}>Change</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity style={styles.imageRemoveBtn} onPress={removeImage}>
+                                <Ionicons name="trash-outline" size={14} color="#EF4444" />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ) : (
+                          <ImagePlaceholder optional={!activeMode.requiresImage} />
+                        )}
+                      </TouchableOpacity>
+                    )}
                     {image && image.originalSize !== undefined && (
                       <View style={styles.compressionStatsBox}>
                         <Ionicons name="sparkles" size={14} color={C.accent} style={{ marginRight: 6 }} />

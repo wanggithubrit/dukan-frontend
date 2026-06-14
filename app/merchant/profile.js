@@ -172,6 +172,7 @@ const verifyPayment = async (payment) => {
 export default function MerchantProfile() {
   const router = useRouter();
   const viewRef = useRef(null);
+  const [selectedPlan, setSelectedPlan] = useState('pro_plus');
 
   const [data, setData] = useState({
     shop: null,
@@ -235,35 +236,53 @@ export default function MerchantProfile() {
     }
   };
 
-  const handlePayment = async () => {
-    const token = await AsyncStorage.getItem('access_token');
-    const res = await fetch(`${BASE_URL}/api/payment/create-order/`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    const options = {
-      description: 'mydukan Pro Plan',
-      currency: 'INR',
-      key: data.key,
-      amount: data.amount,
-      order_id: data.order_id,
-      name: 'mydukan',
-      prefill: {
-        email: data.shop?.owner_email || '',
-        contact: data.shop?.phone || ''
-      },
-      theme: { color: '#2F5D50' },
-    };
-    RazorpayCheckout.open(options)
-      .then(async () => {
-        Alert.alert('Success', 'Payment successful');
-        await fetch(`${BASE_URL}/api/shop/upgrade/`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      })
-      .catch(() => Alert.alert('Error', 'Payment failed'));
+  const handlePayment = async (planName) => {
+    setUIKey('upgrading', true);
+    try {
+      const token = await AsyncStorage.getItem('access_token');
+      const res = await fetch(`${BASE_URL}/api/payment/create-order/`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ plan: planName })
+      });
+      const resData = await res.json();
+      const options = {
+        description: `mydukan ${planName === 'pro_plus' ? 'Pro Plus' : 'Pro'} Plan`,
+        currency: 'INR',
+        key: resData.key,
+        amount: resData.amount,
+        order_id: resData.order_id,
+        name: 'mydukan',
+        prefill: {
+          email: data.shop?.owner_email || '',
+          contact: data.shop?.phone || ''
+        },
+        theme: { color: '#2F5D50' },
+      };
+      RazorpayCheckout.open(options)
+        .then(async () => {
+          Alert.alert('Success', 'Payment successful');
+          const upgradeRes = await fetch(`${BASE_URL}/api/shop/upgrade/`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}` 
+            },
+            body: JSON.stringify({ plan: planName })
+          });
+          await upgradeRes.json();
+          setUIKey('showUpgrade', false);
+          fetchDashboard();
+        })
+        .catch(() => Alert.alert('Error', 'Payment failed'));
+    } catch (err) {
+      Alert.alert('Error', 'Payment initiation failed');
+    } finally {
+      setUIKey('upgrading', false);
+    }
   };
 
   const handleDownloadQR = async () => {
@@ -342,19 +361,61 @@ export default function MerchantProfile() {
       {/* UPGRADE MODAL */}
       <Modal visible={ui.showUpgrade} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Upgrade to PRO</Text>
-            <Text style={styles.modalSub}>Take your shop to the next level</Text>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Showcase up to {plan?.pro_tier_limit ?? 120} products in your shop</Text></View>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Upload up to 3 images per product</Text></View>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Get a premium verified badge on your shop</Text></View>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Appear before free shops when distance is the same</Text></View>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Boost visibility with a featured banner</Text></View>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>No open app ads</Text></View>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Highlight your shop with 5 cover images</Text></View>
-            <View style={styles.modalFeature}><Ionicons name="checkmark-circle" size={20} color="#2F5D50" /><Text style={styles.modalItem}>Engage customers with instant notifications</Text></View>
-            <TouchableOpacity style={styles.modalBtn} onPress={handlePayment} disabled={ui.upgrading}>
-              {ui.upgrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Pay ₹59 / month</Text>}
+          <View style={[styles.modal, { maxHeight: '90%', width: '100%', padding: 20 }]}>
+            <Text style={styles.modalTitle}>Upgrade Subscription</Text>
+            <Text style={styles.modalSub}>Choose a plan to grow your business</Text>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginVertical: 10 }}>
+              {/* PLAN SELECTION CARDS */}
+              <TouchableOpacity 
+                style={[
+                  styles.planOptionCard, 
+                  selectedPlan === 'pro' && styles.planOptionCardSelected
+                ]} 
+                onPress={() => setSelectedPlan('pro')}
+              >
+                <View style={styles.planOptionHeader}>
+                  <Text style={styles.planOptionTitle}>Pro Plan</Text>
+                  <Text style={styles.planOptionPrice}>₹59/mo</Text>
+                </View>
+                <Text style={styles.planOptionDesc}>Perfect for small retail shops</Text>
+                <View style={styles.planOptionFeatures}>
+                  <Text style={styles.planFeatureText}>• Showcase up to 120 products</Text>
+                  <Text style={styles.planFeatureText}>• Upload up to 3 images per product</Text>
+                  <Text style={styles.planFeatureText}>• Premium badge on profile</Text>
+                  <Text style={styles.planFeatureText}>• Highlight shop with 5 cover images</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[
+                  styles.planOptionCard, 
+                  styles.planOptionCardProPlus,
+                  selectedPlan === 'pro_plus' && styles.planOptionCardSelectedProPlus
+                ]} 
+                onPress={() => setSelectedPlan('pro_plus')}
+              >
+                <View style={styles.popularBadge}>
+                  <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+                </View>
+                <View style={styles.planOptionHeader}>
+                  <Text style={[styles.planOptionTitle, { color: '#0A5C43' }]}>Pro Plus</Text>
+                  <Text style={[styles.planOptionPrice, { color: '#0A5C43' }]}>₹120/mo</Text>
+                </View>
+                <Text style={styles.planOptionDesc}>Complete order management & delivery</Text>
+                <View style={styles.planOptionFeatures}>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Showcase up to 500 products</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• NO ADVERTISEMENTS</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Customer Order Request Flow</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Delivery Config (Charge, Area, Time)</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Order Notifications & Statistics</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• 4 images per product</Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <TouchableOpacity style={styles.modalBtn} onPress={() => handlePayment(selectedPlan)} disabled={ui.upgrading}>
+              {ui.upgrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalBtnText}>Pay {selectedPlan === 'pro_plus' ? '₹120' : '₹59'} / month</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setUIKey('showUpgrade', false)} style={{ marginTop: 15 }}>
               <Text style={styles.cancelText}>Maybe Later</Text>
@@ -564,6 +625,7 @@ export default function MerchantProfile() {
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/merchant/create-post')} activeOpacity={0.85}>
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
+        <NavBtn icon="cart-outline" label="Orders" onPress={() => router.push('/merchant/orders')} />
         <NavBtn icon="person" label="Profile" active />
       </View>
     </SafeAreaView>
@@ -650,4 +712,68 @@ const styles = StyleSheet.create({
   navLabel:         { fontSize: 10, color: '#8E9A96', fontWeight: '600' },
   navLabelActive:   { fontSize: 10, color: '#00E676', fontWeight: '700' },
   addBtn:           { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1b4d3e', justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#1b4d3e', shadowOpacity: 0.4, shadowRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#00E676' },
+
+  planOptionCard: {
+    backgroundColor: '#F8FAF9',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#E8EFEA',
+  },
+  planOptionCardSelected: {
+    borderColor: '#2F5D50',
+    backgroundColor: '#E8EFEA30',
+  },
+  planOptionCardProPlus: {
+    borderColor: '#D1FAE5',
+    backgroundColor: '#F0FDF4',
+  },
+  planOptionCardSelectedProPlus: {
+    borderColor: '#0A5C43',
+    backgroundColor: '#E6F4EF',
+  },
+  planOptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  planOptionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1a1a1a',
+  },
+  planOptionPrice: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2F5D50',
+  },
+  planOptionDesc: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+  },
+  planOptionFeatures: {
+    marginTop: 4,
+    gap: 4,
+  },
+  planFeatureText: {
+    fontSize: 12,
+    color: '#333',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -10,
+    right: 12,
+    backgroundColor: '#0A5C43',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  popularBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+  },
 });

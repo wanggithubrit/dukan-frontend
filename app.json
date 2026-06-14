@@ -13,9 +13,11 @@
       "backgroundColor": "#0F2118"
     },
     "android": {
-      "versionCode": 24,
+      "versionCode": 25,
       "package": "com.mydukan.dukanapp",
-      "permissions": ["SCHEDULE_EXACT_ALARM"],
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM"
+      ],
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
@@ -33,7 +35,10 @@
               "pathPrefix": "/shop"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "adaptiveIcon": {
@@ -45,7 +50,9 @@
     "ios": {
       "bundleIdentifier": "com.mydukan.dukanapp",
       "icon": "./assets/images/icon.png",
-      "associatedDomains": ["applinks:mydukan.online"]
+      "associatedDomains": [
+        "applinks:mydukan.online"
+      ]
     },
     "web": {
       "output": "static",
@@ -89,7 +96,8 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

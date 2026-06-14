@@ -161,13 +161,16 @@ export default function InventoryPage() {
   const [editImage1,   setEditImage1]   = useState(null);
   const [editImage2,   setEditImage2]   = useState(null);
   const [editImage3,   setEditImage3]   = useState(null);
+  const [editImage4,   setEditImage4]   = useState(null);
   const [removeImage1, setRemoveImage1] = useState(false);
   const [removeImage2, setRemoveImage2] = useState(false);
   const [removeImage3, setRemoveImage3] = useState(false);
+  const [removeImage4, setRemoveImage4] = useState(false);
   const [trackQuantity,setTrackQuantity]= useState(false);
   const [quantity,     setQuantity]     = useState('0');
   const [saving,       setSaving]       = useState(false);
   const [notifying,    setNotifying]    = useState(false);
+  const [planType,     setPlanType]     = useState('free');
 
   const [creditStatus, setCreditStatus] = useState({
     available_credits: 0,
@@ -322,6 +325,7 @@ export default function InventoryPage() {
         const dashData = await dashRes.json();
         shopIdRef.current = dashData?.shop?.id;
         if (dashData?.plan?.type) {
+          setPlanType(dashData.plan.type);
           AsyncStorage.setItem('plan', dashData.plan.type).catch(err => console.debug('AsyncStorage plan save failed:', err));
         }
       }
@@ -388,9 +392,11 @@ export default function InventoryPage() {
     setEditImage1(selectedItem.image || null);
     setEditImage2(selectedItem.image2 || null);
     setEditImage3(selectedItem.image3 || null);
+    setEditImage4(selectedItem.image4 || null);
     setRemoveImage1(false);
     setRemoveImage2(false);
     setRemoveImage3(false);
+    setRemoveImage4(false);
   }, [selectedItem]);
 
   const onRefresh = useCallback(() => {
@@ -476,6 +482,9 @@ export default function InventoryPage() {
       if (creditStatus.is_pro) {
         appendImageField('image2', editImage2, removeImage2);
         appendImageField('image3', editImage3, removeImage3);
+        if (['pro', 'pro_plus'].includes(planType)) {
+          appendImageField('image4', editImage4, removeImage4);
+        }
       }
 
       const res  = await fetch(`${BASE_URL}/api/item/update/${selectedItem.id}/`, {
@@ -514,7 +523,7 @@ export default function InventoryPage() {
     } finally {
       setSaving(false);
     }
-  }, [selectedItem, editName, editPrice, quantity, trackQuantity, editImage1, editImage2, editImage3, removeImage1, removeImage2, removeImage3, creditStatus.is_pro, getToken]);
+  }, [selectedItem, editName, editPrice, quantity, trackQuantity, editImage1, editImage2, editImage3, editImage4, removeImage1, removeImage2, removeImage3, removeImage4, creditStatus.is_pro, planType, getToken]);
 
   const handleNotifyCustomers = useCallback(async () => {
     if (!selectedItem || notifying) return;
@@ -724,9 +733,10 @@ export default function InventoryPage() {
                       <>
                         <View style={styles.imageSlotsRow}>
                           {[
-                            { value: editImage1, label: 'Image 1', removeFlag: removeImage1, setter: setEditImage1, removeSetter: setRemoveImage1 },
-                            { value: editImage2, label: 'Image 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 },
-                            { value: editImage3, label: 'Image 3', removeFlag: removeImage3, setter: setEditImage3, removeSetter: setRemoveImage3 },
+                            { value: editImage1, label: 'Img 1', removeFlag: removeImage1, setter: setEditImage1, removeSetter: setRemoveImage1 },
+                            { value: editImage2, label: 'Img 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 },
+                            { value: editImage3, label: 'Img 3', removeFlag: removeImage3, setter: setEditImage3, removeSetter: setRemoveImage3 },
+                            ...((['pro', 'pro_plus'].includes(planType)) ? [{ value: editImage4, label: 'Img 4', removeFlag: removeImage4, setter: setEditImage4, removeSetter: setRemoveImage4 }] : [])
                           ].map((slot, index) => (
                             <TouchableOpacity
                               key={index}
@@ -755,7 +765,7 @@ export default function InventoryPage() {
                         </View>
                         {/* Compression stats for edit modal */}
                         <View style={{ marginBottom: 12 }}>
-                          {[editImage1, editImage2, editImage3].map((img, idx) => {
+                          {[editImage1, editImage2, editImage3, editImage4].map((img, idx) => {
                             if (!img || typeof img === 'string' || img.originalSize === undefined) return null;
                             return (
                               <Text key={idx} style={styles.compressionStatsTextMini}>
@@ -957,6 +967,7 @@ export default function InventoryPage() {
         <TouchableOpacity style={styles.addBtn} onPress={handleAddPress} activeOpacity={0.85}>
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
+        <NavBtn icon="cart-outline"   label="Orders"  onPress={() => router.push('/merchant/orders')} />
         <NavBtn icon="person-outline" label="Profile" onPress={() => router.push('/merchant/profile')} />
       </View>
     </SafeAreaView>

@@ -34,6 +34,7 @@ export default function EditShop() {
   const [saving, setSaving] = useState(false);
   const [coords, setCoords] = useState(null);
   const [gpsError, setGpsError] = useState(null);
+  const [planType, setPlanType] = useState('free');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -43,7 +44,12 @@ export default function EditShop() {
     description: '',
     opening_time: '',
     closing_time: '',
-    auto_reminder_enabled: true
+    auto_reminder_enabled: true,
+    delivery_available: false,
+    delivery_charge: '0',
+    delivery_area: '',
+    estimated_delivery_time: '',
+    delivery_range: '10'
   });
 
   const [timePickerVisible, setTimePickerVisible] = useState(false);
@@ -147,6 +153,7 @@ export default function EditShop() {
       const res = await fetch(`${BASE_URL}/api/merchant/dashboard/${user_id}/`);
       const data = await res.json();
       if (res.ok) {
+        setPlanType(data.plan?.type || data.shop?.plan || 'free');
         setFormData({
           name: data.shop.name || '',
           phone: data.shop.phone || '',
@@ -155,7 +162,12 @@ export default function EditShop() {
           description: data.shop.description || '',
           opening_time: data.shop.opening_time ? data.shop.opening_time.substring(0, 5) : '',
           closing_time: data.shop.closing_time ? data.shop.closing_time.substring(0, 5) : '',
-          auto_reminder_enabled: data.shop.auto_reminder_enabled !== false
+          auto_reminder_enabled: data.shop.auto_reminder_enabled !== false,
+          delivery_available: data.shop.delivery_available || false,
+          delivery_charge: data.shop.delivery_charge ? String(data.shop.delivery_charge) : '0',
+          delivery_area: data.shop.delivery_area || '',
+          estimated_delivery_time: data.shop.estimated_delivery_time || '',
+          delivery_range: data.shop.delivery_range ? String(data.shop.delivery_range) : '10'
         });
       }
     } catch (err) {
@@ -207,6 +219,26 @@ export default function EditShop() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Update failed');
 
+      // Sequential update for delivery settings if plan is pro or pro_plus
+      if (['pro', 'pro_plus'].includes(planType)) {
+        const deliveryRes = await fetch(`${BASE_URL}/api/merchant/delivery/settings/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            delivery_available: formData.delivery_available,
+            delivery_charge: formData.delivery_charge ? parseFloat(formData.delivery_charge) : 0,
+            delivery_area: formData.delivery_area,
+            estimated_delivery_time: formData.estimated_delivery_time,
+            delivery_range: formData.delivery_range ? parseInt(formData.delivery_range, 10) : 10,
+          }),
+        });
+        const deliveryData = await deliveryRes.json();
+        if (!deliveryRes.ok) throw new Error(deliveryData.error || 'Failed to update delivery settings');
+      }
+
       // Schedule local notification alarms
       await scheduleShopReminders({
         opening_time: formData.opening_time,
@@ -221,7 +253,7 @@ export default function EditShop() {
     } finally {
       setSaving(false);
     }
-  }, [formData, coords, saving, router]);
+  }, [formData, coords, saving, router, planType]);
 
   if (loading) {
     return (
@@ -355,6 +387,89 @@ export default function EditShop() {
           <TouchableOpacity style={styles.locBtn} onPress={getLocation}>
             <Text style={styles.locBtnText}>Refresh GPS Location</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Delivery Settings (Pro Plus Only) */}
+        <View style={{ marginTop: 20, borderTopWidth: 1, borderColor: '#E8EFEA', paddingTop: 20, marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <Ionicons name="car-outline" size={22} color="#0A5C43" />
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1A332D' }}>Delivery Settings</Text>
+            {!['pro', 'pro_plus'].includes(planType) && (
+              <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#B45309' }}>PRO / PRO PLUS ONLY</Text>
+              </View>
+            )}
+          </View>
+
+          {!['pro', 'pro_plus'].includes(planType) ? (
+            <TouchableOpacity 
+              style={{
+                backgroundColor: '#F8FAF9',
+                borderRadius: 12,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: '#E8EFEA',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onPress={() => Alert.alert('Upgrade to Pro', 'Delivery settings and customer order flow are exclusive to the Pro and Pro Plus subscription tiers.')}
+            >
+              <Ionicons name="lock-closed" size={24} color="#8E9A96" style={{ marginBottom: 6 }} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#5F7A6E', textAlign: 'center' }}>
+                Upgrade to Pro or Pro Plus to offer delivery and receive customer orders.
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <View style={styles.switchRow}>
+                <Text style={styles.switchLabel}>Enable Delivery Available</Text>
+                <Switch
+                  value={formData.delivery_available}
+                  onValueChange={(val) => handleInputChange('delivery_available', val)}
+                  trackColor={{ false: '#767577', true: '#2F5D50' }}
+                  thumbColor={formData.delivery_available ? '#fff' : '#f4f3f4'}
+                />
+              </View>
+
+              {formData.delivery_available && (
+                <>
+                  <Text style={styles.label}>Delivery Charge (₹)</Text>
+                  <TextInput
+                    placeholder="e.g. 30"
+                    keyboardType="numeric"
+                    value={formData.delivery_charge}
+                    onChangeText={(val) => handleInputChange('delivery_charge', val)}
+                    style={styles.input}
+                  />
+
+                  <Text style={styles.label}>Delivery Areas Covered</Text>
+                  <TextInput
+                    placeholder="e.g. Within 5km radius, Sector 15"
+                    value={formData.delivery_area}
+                    onChangeText={(val) => handleInputChange('delivery_area', val)}
+                    style={styles.input}
+                  />
+
+                  <Text style={styles.label}>Estimated Delivery Time</Text>
+                  <TextInput
+                    placeholder="e.g. 30-45 mins"
+                    value={formData.estimated_delivery_time}
+                    onChangeText={(val) => handleInputChange('estimated_delivery_time', val)}
+                    style={styles.input}
+                  />
+
+                  <Text style={styles.label}>Doorstep Delivery Range (km)</Text>
+                  <TextInput
+                    placeholder="e.g. 10"
+                    keyboardType="numeric"
+                    value={formData.delivery_range}
+                    onChangeText={(val) => handleInputChange('delivery_range', val)}
+                    style={styles.input}
+                  />
+                </>
+              )}
+            </>
+          )}
         </View>
 
         <TouchableOpacity

@@ -124,51 +124,11 @@ const CATEGORY_ICONS = {
 };
 
 const RANGES = [1, 5, 10, 25, 'All'];
-const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium'];
+const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium', 'pro_plus', 'pro plus'];
 const PREMIUM_SET = new Set(PREMIUM_PLANS.map((p) => String(p).toLowerCase()));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-let useVideoPlayer = null;
-let VideoView = null;
-try {
-  const expoVideo = require('expo-video');
-  useVideoPlayer = expoVideo.useVideoPlayer;
-  VideoView = expoVideo.VideoView;
-} catch (err) {
-  console.debug('expo-video not linked:', err.message);
-}
 
-const VideoBannerPlayer = React.memo(({ videoUrl, style }) => {
-  if (!useVideoPlayer || !VideoView) {
-    return <View style={[style, { backgroundColor: '#000' }]} />;
-  }
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const player = useVideoPlayer(videoUrl, (p) => {
-    p.loop = true;
-    p.muted = true;
-  });
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (player) {
-      player.loop = true;
-      player.muted = true;
-      player.play();
-    }
-  }, [player]);
-
-  return (
-    <VideoView
-      style={style}
-      player={player}
-      allowsFullscreen={false}
-      showsPlaybackControls={false}
-      contentFit="cover"
-    />
-  );
-});
-VideoBannerPlayer.displayName = 'VideoBannerPlayer';
 
 const getImageUrl = (img) => {
   if (!img) return null;
@@ -658,6 +618,7 @@ export default function MerchantHome() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [range, setRange] = useState('All');
+  const [onlyDeliverable, setOnlyDeliverable] = useState(false);
   const [shops, setShops] = useState([]);
   const [shopPage, setShopPage] = useState(1);
   const [productPage, setProductPage] = useState(1);
@@ -1117,6 +1078,14 @@ export default function MerchantHome() {
       if (query && !s.name?.toLowerCase().includes(query)) {
         return false;
       }
+      if (onlyDeliverable) {
+        if (!s.delivery_available) {
+          return false;
+        }
+        if (s.delivery_range != null && s.distance != null && Number(s.distance) > Number(s.delivery_range)) {
+          return false;
+        }
+      }
       return true;
     });
     filtered.sort(byDistance);
@@ -1129,6 +1098,12 @@ export default function MerchantHome() {
     // Product search
     if (query) {
       shops.forEach((shop) => {
+        if (onlyDeliverable) {
+          if (!shop.delivery_available) return;
+          if (shop.delivery_range != null && shop.distance != null && Number(shop.distance) > Number(shop.delivery_range)) {
+            return;
+          }
+        }
         (shop.items ?? []).forEach((item) => {
           if (!item.name?.toLowerCase().includes(query)) return;
           if (cutoff != null && (shop.distance == null || Number(shop.distance) > cutoff)) {
@@ -1148,7 +1123,7 @@ export default function MerchantHome() {
     const openNow = !query ? filtered.filter((s) => s.is_open).slice(0, 12) : [];
 
     return { filteredShops: filtered, openNowShops: openNow, productResults: products };
-  }, [shops, search, selectedCategory, range]);
+  }, [shops, search, selectedCategory, range, onlyDeliverable]);
 
   if (loading) return (
     <View style={styles.center}>
@@ -1174,7 +1149,41 @@ export default function MerchantHome() {
           <View>
             <Text style={styles.headerTitle}>Merchant Portal</Text>
           </View>
-          <Image source={require('../../assets/images/logo_round.png')} style={styles.headerLogo} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                const isPremium = shop?.plan && ['pro', 'pro_plus'].includes(String(shop.plan).toLowerCase());
+                if (isPremium) {
+                  router.push('/notifications');
+                } else {
+                  Alert.alert(
+                    'Upgrade to Pro',
+                    'Notification history is a premium feature exclusive to Pro and Pro Plus subscription tiers.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Upgrade Now', onPress: () => router.push('/merchant/profile') }
+                    ]
+                  );
+                }
+              }}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                backgroundColor: '#EEF2F0',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons
+                name={shop?.plan && ['pro', 'pro_plus'].includes(String(shop.plan).toLowerCase()) ? "notifications" : "notifications-outline"}
+                size={20}
+                color={shop?.plan && ['pro', 'pro_plus'].includes(String(shop.plan).toLowerCase()) ? '#2F5D50' : '#8E9A96'}
+              />
+            </TouchableOpacity>
+            <Image source={require('../../assets/images/logo_round.png')} style={styles.headerLogo} />
+          </View>
         </View>
 
         {/* ── TAB BAR ── */}
@@ -1415,51 +1424,65 @@ export default function MerchantHome() {
               </View>
             </View>
 
-            {/* SEARCH BAR */}
-            <View style={[styles.searchWrap, searchFocused && styles.searchWrapFocused]}>
-              <Ionicons
-                name="search-outline"
-                size={17}
-                color={searchFocused ? C.primary : C.textMuted}
-              />
-              <TextInput
-                ref={searchInputRef}
-                placeholder="Search shops or products..."
-                placeholderTextColor={C.textMuted}
-                value={search}
-                onChangeText={setSearch}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                style={styles.searchInput}
-                selectionColor={C.primary}
-                returnKeyType="search"
-                underlineColorAndroid="transparent"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              {search.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setSearch('');
-                    searchInputRef.current?.blur();
-                  }}
-                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-                >
-                  <View style={styles.searchClearBtn}>
-                    <Ionicons name="close" size={12} color={C.textSoft} />
-                  </View>
-                </TouchableOpacity>
-              )}
+            {/* SEARCH BAR & DOORSTEP TOGGLE */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 16, gap: 8 }}>
+              <View style={[styles.searchWrap, searchFocused && styles.searchWrapFocused, { flex: 1, marginHorizontal: 0, marginBottom: 0 }]}>
+                <Ionicons
+                  name="search-outline"
+                  size={17}
+                  color={searchFocused ? C.primary : C.textMuted}
+                />
+                <TextInput
+                  ref={searchInputRef}
+                  placeholder="Search shops or products..."
+                  placeholderTextColor={C.textMuted}
+                  value={search}
+                  onChangeText={setSearch}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  style={styles.searchInput}
+                  selectionColor={C.primary}
+                  returnKeyType="search"
+                  underlineColorAndroid="transparent"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+                {search.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSearch('');
+                      searchInputRef.current?.blur();
+                    }}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                  >
+                    <View style={styles.searchClearBtn}>
+                      <Ionicons name="close" size={12} color={C.textSoft} />
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.deliveryToggleChip, onlyDeliverable && styles.deliveryToggleChipActive, { height: 52, borderRadius: 18, justifyContent: 'center', alignSelf: 'stretch', paddingHorizontal: 12 }]}
+                onPress={() => setOnlyDeliverable(!onlyDeliverable)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="bicycle-outline" size={16} color={onlyDeliverable ? '#fff' : '#0A5C43'} />
+                <Text style={[styles.deliveryToggleChipText, onlyDeliverable && styles.deliveryToggleChipTextActive, { fontSize: 12, marginLeft: 2 }]}>
+                  Doorstep
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* RANGE SELECTOR */}
-            <View style={styles.rangeRow}>
+            <View style={[styles.rangeRow, { paddingRight: 18 }]}>
               <Ionicons name="radio-outline" size={13} color={C.textMuted} />
               <Text style={styles.rangeLabel}>Range</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 6, paddingRight: 18 }}
+                contentContainerStyle={{ gap: 6 }}
+                style={{ flex: 1 }}
               >
                 {RANGES.map((r) => (
                   <TouchableOpacity
@@ -1590,19 +1613,7 @@ export default function MerchantHome() {
                       }}
                       style={{ width: bannerWidth, marginRight: 8 }}
                     >
-                      {b.banner_type === 'video' && b.video ? (
-                        <View style={styles.bannerImageWrapMarket}>
-                          <VideoBannerPlayer
-                            videoUrl={getImageUrl(b.video)}
-                            style={styles.bannerImageMarket}
-                          />
-                          {b.link && (
-                            <View style={styles.bannerLinkIconMarket}>
-                              <Ionicons name="open-outline" size={12} color={C.white} />
-                            </View>
-                          )}
-                        </View>
-                      ) : b.banner_type === 'image' && b.image ? (
+                      {b.image ? (
                         <View style={styles.bannerImageWrapMarket}>
                           <Image
                             source={{ uri: getImageUrl(b.image) }}
@@ -1774,6 +1785,7 @@ export default function MerchantHome() {
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/merchant/create-post')} activeOpacity={0.85}>
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
+        <NavBtn icon="cart-outline"   label="Orders"  onPress={() => router.push('/merchant/orders')} />
         <NavBtn icon="person-outline" label="Profile" onPress={() => router.push('/merchant/profile')} />
       </View>
       <AppUpdateModal />
@@ -2272,6 +2284,34 @@ const styles = StyleSheet.create({
     paddingLeft: 18,
     marginBottom: 14,
     gap: 6,
+  },
+  deliveryToggleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 11,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E0EAE6',
+  },
+  deliveryToggleChipActive: {
+    backgroundColor: '#0A5C43',
+    borderColor: '#0A5C43',
+    shadowColor: '#0A5C43',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  deliveryToggleChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0A5C43'
+  },
+  deliveryToggleChipTextActive: {
+    color: '#fff'
   },
   rangeLabel: {
     fontSize: 11,

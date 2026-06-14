@@ -139,50 +139,10 @@ const CATEGORY_ICONS = {
 };
 
 const RANGES = [1, 5, 10, 25, 'All'];
-const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium'];
+const PREMIUM_PLANS = ['Pro', 'Business', 'Premium', 'pro', 'business', 'premium', 'pro_plus', 'pro plus'];
 const PREMIUM_SET = new Set(PREMIUM_PLANS.map((p) => String(p).toLowerCase()));
 
-let useVideoPlayer = null;
-let VideoView = null;
-try {
-  const expoVideo = require('expo-video');
-  useVideoPlayer = expoVideo.useVideoPlayer;
-  VideoView = expoVideo.VideoView;
-} catch (err) {
-  console.debug('expo-video not linked:', err.message);
-}
 
-const VideoBannerPlayer = React.memo(({ videoUrl, style }) => {
-  if (!useVideoPlayer || !VideoView) {
-    return <View style={[style, { backgroundColor: '#000' }]} />;
-  }
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const player = useVideoPlayer(videoUrl, (p) => {
-    p.loop = true;
-    p.muted = true;
-  });
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (player) {
-      player.loop = true;
-      player.muted = true;
-      player.play();
-    }
-  }, [player]);
-
-  return (
-    <VideoView
-      style={style}
-      player={player}
-      allowsFullscreen={false}
-      showsPlaybackControls={false}
-      contentFit="cover"
-    />
-  );
-});
-VideoBannerPlayer.displayName = 'VideoBannerPlayer';
 
 const getImageUrl = (img) => {
   if (!img) return null;
@@ -641,6 +601,7 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const searchInputRef = useRef(null);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [onlyDeliverable, setOnlyDeliverable] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [range, setRange] = useState('All');
 
@@ -937,14 +898,24 @@ export default function Home() {
   // FILTERING & MEMOIZATION
   // ─────────────────────────────────────────────────────────────────────────
 
-  const { filteredShops, openNowShops, productResults } = useMemo(() => {
+  const { filteredShops, openNowShops, productResults, nearestShopDist } = useMemo(() => {
     if (!Array.isArray(shops)) {
-      return { filteredShops: [], openNowShops: [], productResults: [] };
+      return { filteredShops: [], openNowShops: [], productResults: [], nearestShopDist: null };
     }
 
     const query = search.toLowerCase().trim();
     const cutoff = range !== 'All' ? Number(range) : null;
     const products = [];
+
+    let minDistance = null;
+    shops.forEach((s) => {
+      if (s.distance != null) {
+        const d = Number(s.distance);
+        if (minDistance === null || d < minDistance) {
+          minDistance = d;
+        }
+      }
+    });
 
     let filtered = shops.filter((s) => {
       if (cutoff != null && (s.distance == null || Number(s.distance) > cutoff)) {
@@ -958,6 +929,14 @@ export default function Home() {
       }
       if (query && !s.name?.toLowerCase().includes(query)) {
         return false;
+      }
+      if (onlyDeliverable) {
+        if (!s.delivery_available) {
+          return false;
+        }
+        if (s.delivery_range != null && s.distance != null && Number(s.distance) > Number(s.delivery_range)) {
+          return false;
+        }
       }
       return true;
     });
@@ -976,6 +955,12 @@ export default function Home() {
           if (cutoff != null && (shop.distance == null || Number(shop.distance) > cutoff)) {
             return;
           }
+          if (onlyDeliverable) {
+            if (!shop.delivery_available) return;
+            if (shop.delivery_range != null && shop.distance != null && Number(shop.distance) > Number(shop.delivery_range)) {
+              return;
+            }
+          }
           products.push({
             ...item,
             shopId: shop.id,
@@ -989,8 +974,13 @@ export default function Home() {
 
     const openNow = !query ? filtered.filter((s) => s.is_open).slice(0, 12) : [];
 
-    return { filteredShops: filtered, openNowShops: openNow, productResults: products };
-  }, [shops, search, selectedCategory, range]);
+    return { 
+      filteredShops: filtered, 
+      openNowShops: openNow, 
+      productResults: products,
+      nearestShopDist: minDistance
+    };
+  }, [shops, search, selectedCategory, range, onlyDeliverable]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // CALLBACKS
@@ -1147,54 +1137,68 @@ export default function Home() {
         </View>
 
         {/* ──────────────────────────────────────────────────────────────────── */}
-        {/* SEARCH BAR */}
+        {/* SEARCH BAR & DOORSTEP TOGGLE */}
         {/* ──────────────────────────────────────────────────────────────────── */}
-        <View style={[s.searchWrap, searchFocused && s.searchWrapFocused]}>
-          <Ionicons
-            name="search-outline"
-            size={17}
-            color={searchFocused ? C.primary : C.textMuted}
-          />
-          <TextInput
-            ref={searchInputRef}
-            placeholder="Search shops or products..."
-            placeholderTextColor={C.textMuted}
-            value={search}
-            onChangeText={setSearch}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            style={s.searchInput}
-            selectionColor={C.primary}
-            returnKeyType="search"
-            underlineColorAndroid="transparent"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {search.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearch('');
-                searchInputRef.current?.blur();
-              }}
-              hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-            >
-              <View style={s.searchClearBtn}>
-                <Ionicons name="close" size={12} color={C.textSoft} />
-              </View>
-            </TouchableOpacity>
-          )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 18, marginBottom: 16, gap: 8 }}>
+          <View style={[s.searchWrap, searchFocused && s.searchWrapFocused, { flex: 1, marginHorizontal: 0, marginBottom: 0 }]}>
+            <Ionicons
+              name="search-outline"
+              size={17}
+              color={searchFocused ? C.primary : C.textMuted}
+            />
+            <TextInput
+              ref={searchInputRef}
+              placeholder="Search shops or products..."
+              placeholderTextColor={C.textMuted}
+              value={search}
+              onChangeText={setSearch}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              style={s.searchInput}
+              selectionColor={C.primary}
+              returnKeyType="search"
+              underlineColorAndroid="transparent"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {search.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearch('');
+                  searchInputRef.current?.blur();
+                }}
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+              >
+                <View style={s.searchClearBtn}>
+                  <Ionicons name="close" size={12} color={C.textSoft} />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[s.deliveryToggleChip, onlyDeliverable && s.deliveryToggleChipActive, { height: 52, borderRadius: 18, justifyContent: 'center', alignSelf: 'stretch', paddingHorizontal: 12 }]}
+            onPress={() => setOnlyDeliverable(!onlyDeliverable)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="bicycle-outline" size={16} color={onlyDeliverable ? '#fff' : '#0A5C43'} />
+            <Text style={[s.deliveryToggleChipText, onlyDeliverable && s.deliveryToggleChipTextActive, { fontSize: 12, marginLeft: 2 }]}>
+              Doorstep
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* ──────────────────────────────────────────────────────────────────── */}
         {/* RANGE SELECTOR */}
         {/* ──────────────────────────────────────────────────────────────────── */}
-        <View style={s.rangeRow}>
+        <View style={[s.rangeRow, { paddingRight: 18 }]}>
           <Ionicons name="radio-outline" size={13} color={C.textMuted} />
           <Text style={s.rangeLabel}>Range</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 6, paddingRight: 18 }}
+            contentContainerStyle={{ gap: 6 }}
+            style={{ flex: 1 }}
           >
             {RANGES.map((r) => (
               <TouchableOpacity
@@ -1330,19 +1334,7 @@ export default function Home() {
                   }}
                   style={{ width: bannerWidth, marginRight: 8 }}
                 >
-                  {b.banner_type === 'video' && b.video ? (
-                    <View style={s.bannerImageWrap}>
-                      <VideoBannerPlayer
-                        videoUrl={getImageUrl(b.video)}
-                        style={s.bannerImage}
-                      />
-                      {b.link && (
-                        <View style={s.bannerLinkIcon}>
-                          <Ionicons name="open-outline" size={12} color={C.white} />
-                        </View>
-                      )}
-                    </View>
-                  ) : b.banner_type === 'image' && b.image ? (
+                  {b.image ? (
                     <View style={s.bannerImageWrap}>
                       <Image
                         source={{ uri: getImageUrl(b.image) }}
@@ -1466,7 +1458,9 @@ export default function Home() {
             <Text style={s.emptySubtitle}>
               {search
                 ? 'Try a different search term'
-                : 'Try expanding the distance range'}
+                : nearestShopDist != null
+                  ? `The nearest shop is ${formatDist(nearestShopDist)} away. Try expanding the range.`
+                  : 'Try expanding the distance range or enabling location permissions.'}
             </Text>
           </View>
         ) : (
@@ -2379,4 +2373,33 @@ function getStyles(theme) { Object.assign(C, theme || {}); return StyleSheet.cre
     fontWeight: '700',
     letterSpacing: -0.2,
   },
+
+  deliveryToggleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 11,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E0EAE6',
+  },
+  deliveryToggleChipActive: {
+    backgroundColor: '#0A5C43',
+    borderColor: '#0A5C43',
+    shadowColor: '#0A5C43',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  deliveryToggleChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0A5C43'
+  },
+  deliveryToggleChipTextActive: {
+    color: '#fff'
+  }
 }); }

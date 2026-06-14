@@ -34,6 +34,7 @@ import {
   TouchableWithoutFeedback,
   View,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AdBanner from '../../components/AdBanner';
@@ -98,7 +99,7 @@ const getImageUrl = (img) => {
   return `${BASE_URL}${img.startsWith('/') ? '' : '/'}${img}`;
 };
 
-const getItemImages = (item) => [item?.image, item?.image2, item?.image3].filter(Boolean);
+const getItemImages = (item) => [item?.image, item?.image2, item?.image3, item?.image4].filter(Boolean);
 
 const templateGradients = {
   red:   ['#9B1C1C', '#C0392B'],
@@ -410,7 +411,7 @@ const ItemRow = memo(({ items, rowIdx, onPress }) => (
 ));
 ItemRow.displayName = 'ItemRow';
 
-const BannerCarousel = memo(({ banners }) => {
+const BannerCarousel = memo(({ banners, onPressBanner }) => {
   const [offerIndex, setOfferIndex] = useState(0);
   const scrollRef  = useRef(null);
   const offerWidth = width - H_PAD * 2;
@@ -442,7 +443,12 @@ const BannerCarousel = memo(({ banners }) => {
         }
       >
         {banners.map((b) => (
-          <View key={b.id} style={{ width: offerWidth }}>
+          <TouchableOpacity
+            key={b.id}
+            style={{ width: offerWidth }}
+            onPress={() => onPressBanner && onPressBanner(b)}
+            activeOpacity={0.88}
+          >
             {b.banner_type === 'image' ? (
               <Image
                 source={{ uri: getImageUrl(b.image) }}
@@ -465,7 +471,7 @@ const BannerCarousel = memo(({ banners }) => {
                 <Ionicons name="pricetag" size={80} color="rgba(255,255,255,0.08)" style={s.offerBgIcon} />
               </LinearGradient>
             )}
-          </View>
+          </TouchableOpacity>
         ))}
       </Animated.ScrollView>
       {banners.length > 1 && (
@@ -486,6 +492,14 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
   const carouselRef = useRef(null);
   const images = getItemImages(item);
 
+  const [showOrderForm, setShowOrderForm] = useState(false);
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custQty, setCustQty] = useState('1');
+  const [custAddr, setCustAddr] = useState('');
+  const [custNotes, setCustNotes] = useState('');
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+
   useEffect(() => {
     Animated.spring(anim, {
       toValue: visible ? 1 : 0,
@@ -496,7 +510,16 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
   }, [visible, anim]);
 
   useEffect(() => {
-    if (visible) setActiveImage(0);
+    if (visible) {
+      setActiveImage(0);
+      setShowOrderForm(false);
+      setCustQty('1');
+      setCustAddr('');
+      setCustNotes('');
+      
+      AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+      AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+    }
   }, [visible, item]);
 
   if (!item) return null;
@@ -511,7 +534,8 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
   };
 
   return (
-    <Modal transparent visible={visible} onRequestClose={onClose} animationType="fade" statusBarTranslucent>
+    <>
+    <Modal transparent visible={visible && !showOrderForm} onRequestClose={onClose} animationType="fade" statusBarTranslucent>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={s.modalOverlay}>
           <TouchableWithoutFeedback>
@@ -523,7 +547,7 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
                 <ScrollView
                   ref={carouselRef}
                   horizontal
-                  pagingEnabled
+                  paddingEnabled
                   showsHorizontalScrollIndicator={false}
                   scrollEventThrottle={16}
                   onMomentumScrollEnd={handleCarouselScroll}
@@ -614,6 +638,24 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
                 )}
 
                 {item.description ? <Text style={s.modalDesc}>{item.description}</Text> : null}
+                
+                {shop?.plan && ['pro', 'pro_plus'].includes(shop.plan.toLowerCase()) && (
+                  <TouchableOpacity
+                    style={[s.modalOrderBtn, item.quantity_status === 'out' && { opacity: 0.6 }]}
+                    onPress={() => {
+                      if (item.quantity_status === 'out') {
+                        Alert.alert('Out of Stock', 'This item is currently out of stock.');
+                        return;
+                      }
+                      setShowOrderForm(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="cart" size={20} color="#fff" />
+                    <Text style={s.modalOrderBtnText}>Order Now</Text>
+                  </TouchableOpacity>
+                )}
+
                 <View style={s.swipeHint}>
                   <View style={s.swipeBar} />
                 </View>
@@ -644,6 +686,146 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
         </View>
       </TouchableWithoutFeedback>
     </Modal>
+
+    {/* Order Details Form Modal */}
+    <Modal visible={showOrderForm} transparent animationType="slide" onRequestClose={() => setShowOrderForm(false)}>
+      <View style={s.orderFormOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.orderFormContainer}>
+          <View style={s.orderFormHeader}>
+            <Text style={s.orderFormTitle}>Order Details</Text>
+            <TouchableOpacity onPress={() => setShowOrderForm(false)}>
+              <Ionicons name="close" size={20} color={C.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} style={s.orderFormBody}>
+            <Text style={s.orderFormItemName}>{item.name}</Text>
+            <Text style={s.orderFormItemPrice}>{item.price ? `₹${item.price}` : ''}</Text>
+
+            <Text style={s.formLabel}>Your Name *</Text>
+            <TextInput
+              placeholder="Enter your name"
+              value={custName}
+              onChangeText={setCustName}
+              style={s.formInput}
+            />
+
+            <Text style={s.formLabel}>Phone Number *</Text>
+            <TextInput
+              placeholder="Enter phone number"
+              keyboardType="phone-pad"
+              value={custPhone}
+              onChangeText={setCustPhone}
+              style={s.formInput}
+            />
+
+            <Text style={s.formLabel}>Quantity *</Text>
+            <View style={s.qtyRow}>
+              <TouchableOpacity 
+                style={s.qtyBtn} 
+                onPress={() => setCustQty(q => String(Math.max(1, parseInt(q, 10) - 1)))}
+              >
+                <Text style={s.qtyBtnText}>-</Text>
+              </TouchableOpacity>
+              <TextInput
+                keyboardType="numeric"
+                value={custQty}
+                onChangeText={setCustQty}
+                style={s.qtyInput}
+              />
+              <TouchableOpacity 
+                style={s.qtyBtn} 
+                onPress={() => setCustQty(q => String(parseInt(q, 10) + 1))}
+              >
+                <Text style={s.qtyBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            {shop?.delivery_available && (
+              <>
+                <Text style={s.formLabel}>Delivery Address (Optional)</Text>
+                <TextInput
+                  placeholder="Enter full delivery address"
+                  value={custAddr}
+                  onChangeText={setCustAddr}
+                  style={[s.formInput, s.formTextArea]}
+                  multiline
+                />
+                <View style={s.deliveryInfoCard}>
+                  <Text style={s.deliveryInfoText}>
+                    🚚 Delivery Charge: ₹{shop.delivery_charge} | Areas: {shop.delivery_area || 'All'}
+                  </Text>
+                  {shop.estimated_delivery_time && (
+                    <Text style={s.deliveryInfoTextSub}>
+                      🕒 Estimated Delivery Time: {shop.estimated_delivery_time}
+                    </Text>
+                  )}
+                </View>
+              </>
+            )}
+
+            <Text style={s.formLabel}>Notes (Optional)</Text>
+            <TextInput
+              placeholder="Any special instructions for the merchant"
+              value={custNotes}
+              onChangeText={setCustNotes}
+              style={[s.formInput, s.formTextArea]}
+              multiline
+            />
+
+            <View style={{ height: 20 }} />
+          </ScrollView>
+
+          <TouchableOpacity 
+            style={[s.submitOrderBtn, submittingOrder && { opacity: 0.7 }]} 
+            onPress={async () => {
+              if (!custName.trim()) return Alert.alert('Required', 'Name is required');
+              if (!custPhone.trim()) return Alert.alert('Required', 'Phone number is required');
+              try {
+                setSubmittingOrder(true);
+                const res = await fetch(`${BASE_URL}/api/orders/`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    shop_id: shop.id,
+                    item_id: item.id,
+                    quantity: parseInt(custQty, 10) || 1,
+                    customer_name: custName.trim(),
+                    customer_phone: custPhone.trim(),
+                    delivery_address: custAddr.trim(),
+                    notes: custNotes.trim()
+                  })
+                });
+                const resJson = await res.json();
+                if (!res.ok) throw new Error(resJson.error || 'Submission failed');
+                
+                // Save name & phone for future prefills
+                await AsyncStorage.multiSet([
+                  ['user_name', custName.trim()],
+                  ['user_phone', custPhone.trim()]
+                ]);
+
+                Alert.alert('Success 🎉', 'Your order request has been sent to the merchant!');
+                setShowOrderForm(false);
+                onClose();
+              } catch (e) {
+                Alert.alert('Error', e.message);
+              } finally {
+                setSubmittingOrder(false);
+              }
+            }}
+            disabled={submittingOrder}
+          >
+            {submittingOrder ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={s.submitOrderBtnText}>Submit Order Request</Text>
+            )}
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+    </>
   );
 });
 ItemModal.displayName = 'ItemModal';
@@ -758,12 +940,13 @@ const CoverCarousel = memo(({ media, shop, isPro, scrollY }) => {
 CoverCarousel.displayName = 'CoverCarousel';
 
 const ShopListHeader = memo(({
-  shop, media, banners, isPro,
+  shop, media, banners, isPro, isProPlus,
   filteredCount, searchQuery, searchFocused,
   searchRef, onSearchBarLayout, scrollY,
   callShop, openWhatsApp, openMap,
   setSearchQuery, onSearchFocus, onSearchBlur, clearSearch,
   reportStatus,
+  onPressBanner,
 }) => {
   const hasPhone    = !!shop.phone;
   const hasWhatsApp = !!shop.whatsapp_number;
@@ -782,13 +965,18 @@ const ShopListHeader = memo(({
       <View style={s.infoCard}>
         <View style={s.infoTopRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Text style={s.shopName}>{shop.name}</Text>
-              {isPro && (
+              {isProPlus ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0A5C43', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 }}>
+                  <Ionicons name="shield-checkmark" size={10} color="#FFFFFF" />
+                  <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '800' }}>PRO PLUS</Text>
+                </View>
+              ) : isPro ? (
                 <View style={{ backgroundColor: '#EAB308', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', shadowColor: '#FFD700', shadowOpacity: 0.5, shadowRadius: 4, elevation: 2 }}>
                   <Ionicons name="star" size={9} color="#FFFFFF" />
                 </View>
-              )}
+              ) : null}
             </View>
             <CategoryPill label={shop.category} />
           </View>
@@ -875,7 +1063,7 @@ const ShopListHeader = memo(({
           </View>
         </View>
         {isPro && banners?.length > 0 && (
-          <BannerCarousel banners={banners} />
+          <BannerCarousel banners={banners} onPressBanner={onPressBanner} />
         )}
         <AdBanner />
       </View>
@@ -982,6 +1170,7 @@ export default function ShopDetail() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedItem,  setSelectedItem]  = useState(null);
   const [modalVisible,  setModalVisible]  = useState(false);
+  const [selectedBanner, setSelectedBanner] = useState(null);
 
   const {
     shop, banners, media, items,
@@ -1146,7 +1335,8 @@ export default function ShopDetail() {
   );
 
   const HEADER_TOP = insets.top + 8;
-  const isPro = shop?.plan?.toLowerCase?.() === 'pro';
+  const isPro = shop?.plan && ['pro', 'pro_plus'].includes(shop.plan.toLowerCase());
+  const isProPlus = shop?.plan && ['pro', 'pro_plus'].includes(shop.plan.toLowerCase());
 
   if (loading && !shop) return <LoadingScreen />;
   if (!shop && error) return <ErrorScreen message={error} onRetry={onRefresh} />;
@@ -1204,6 +1394,7 @@ export default function ShopDetail() {
               media={media}
               banners={banners}
               isPro={isPro}
+              isProPlus={isProPlus}
               filteredCount={filteredItems.length}
               searchQuery={searchQuery}
               searchFocused={searchFocused}
@@ -1218,6 +1409,7 @@ export default function ShopDetail() {
               onSearchBlur={onSearchBlur}
               clearSearch={clearSearch}
               reportStatus={handleReportStatus}
+              onPressBanner={setSelectedBanner}
             />
           }
           ListEmptyComponent={
@@ -1246,6 +1438,59 @@ export default function ShopDetail() {
           updateCellsBatchingPeriod={50}
         />
       </KeyboardAvoidingView>
+
+      {/* ── BANNER DETAIL MODAL ── */}
+      <Modal
+        visible={!!selectedBanner}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedBanner(null)}
+      >
+        <TouchableOpacity 
+          style={s.bannerModalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setSelectedBanner(null)}
+        >
+          <View style={s.bannerDetailContainer}>
+            <TouchableOpacity 
+              style={s.bannerDetailClose} 
+              onPress={() => setSelectedBanner(null)}
+            >
+              <Ionicons name="close" size={20} color="#1A332D" />
+            </TouchableOpacity>
+            
+            {selectedBanner?.detail_image ? (
+              <Image
+                source={{ uri: getImageUrl(selectedBanner.detail_image) }}
+                style={s.bannerDetailImage}
+                contentFit="contain"
+              />
+            ) : selectedBanner?.image ? (
+              <Image
+                source={{ uri: getImageUrl(selectedBanner.image) }}
+                style={s.bannerDetailImage}
+                contentFit="contain"
+              />
+            ) : (
+              <LinearGradient
+                colors={getTemplateGradient(selectedBanner?.template || 'green')}
+                style={s.bannerDetailCard}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="pricetag-outline" size={48} color="#fff" style={{ marginBottom: 12 }} />
+                <Text style={s.bannerDetailTitle}>{selectedBanner?.title?.toUpperCase()}</Text>
+                {selectedBanner?.discount && (
+                  <Text style={s.bannerDetailDiscount}>{selectedBanner.discount}</Text>
+                )}
+                {selectedBanner?.subtitle && (
+                  <Text style={s.bannerDetailSubtitle}>{selectedBanner.subtitle}</Text>
+                )}
+              </LinearGradient>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -1669,4 +1914,199 @@ const s = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 6,
   },
+  modalOrderBtn: {
+    backgroundColor: '#0A5C43',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 15,
+    gap: 8
+  },
+  modalOrderBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800'
+  },
+  orderFormOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  orderFormContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    padding: 20
+  },
+  orderFormHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  orderFormTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0D1F19'
+  },
+  orderFormBody: {
+    flexGrow: 0
+  },
+  orderFormItemName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0D1F19',
+    marginBottom: 4
+  },
+  orderFormItemPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5F7A6E',
+    marginBottom: 16
+  },
+  formLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0D1F19',
+    marginTop: 12,
+    marginBottom: 6
+  },
+  formInput: {
+    borderWidth: 1,
+    borderColor: '#E0EAE6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0D1F19',
+    backgroundColor: '#F8FAF9'
+  },
+  formTextArea: {
+    height: 80,
+    textAlignVertical: 'top'
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 6
+  },
+  qtyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E6F4EF',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  qtyBtnText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0A5C43'
+  },
+  qtyInput: {
+    borderWidth: 1,
+    borderColor: '#E0EAE6',
+    borderRadius: 10,
+    width: 60,
+    height: 36,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0D1F19',
+    backgroundColor: '#F8FAF9'
+  },
+  deliveryInfoCard: {
+    backgroundColor: '#E6F4EF',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 8
+  },
+  deliveryInfoText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0A5C43'
+  },
+  deliveryInfoTextSub: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#5F7A6E',
+    marginTop: 2
+  },
+  submitOrderBtn: {
+    backgroundColor: '#0A5C43',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16
+  },
+  submitOrderBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800'
+  },
+  bannerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  bannerDetailContainer: {
+    width: '100%',
+    maxWidth: 500,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    overflow: 'hidden',
+    padding: 16,
+    position: 'relative'
+  },
+  bannerDetailClose: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    backgroundColor: '#f0f3f1',
+    borderRadius: 16,
+    padding: 6
+  },
+  bannerDetailImage: {
+    width: '100%',
+    height: 350,
+    borderRadius: 16,
+    backgroundColor: '#f9fbf9'
+  },
+  bannerDetailCard: {
+    width: '100%',
+    height: 350,
+    borderRadius: 16,
+    padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  bannerDetailTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8
+  },
+  bannerDetailDiscount: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#ffea79',
+    textAlign: 'center',
+    marginBottom: 8
+  },
+  bannerDetailSubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    opacity: 0.9,
+    textAlign: 'center'
+  }
 });
