@@ -256,9 +256,10 @@ export default function CreatePost() {
 
   const [mode,    setModeState] = useState('cover');
   const [image,   setImage]     = useState(null);
+  const [image2,  setImage2]    = useState(null);
+  const [image3,  setImage3]    = useState(null);
   const [image4,  setImage4]    = useState(null);
   const [detailImage, setDetailImage] = useState(null);
-  const [image3,  setImage3]    = useState(null);
   const [loading, setLoading]   = useState(false);
   const [notifyCustomers, setNotifyCustomers] = useState(true);
   const [planData, setPlanData] = useState({ plan: null, stats: null, credits: null });
