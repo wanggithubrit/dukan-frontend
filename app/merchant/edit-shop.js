@@ -458,14 +458,18 @@ export default function EditShop() {
                     style={styles.input}
                   />
 
-                  <Text style={styles.label}>Doorstep Delivery Range (km)</Text>
-                  <TextInput
-                    placeholder="e.g. 10"
-                    keyboardType="numeric"
-                    value={formData.delivery_range}
-                    onChangeText={(val) => handleInputChange('delivery_range', val)}
-                    style={styles.input}
-                  />
+                  {planType === 'pro_plus' && (
+                    <>
+                      <Text style={styles.label}>Doorstep Delivery Range (km)</Text>
+                      <TextInput
+                        placeholder="e.g. 10"
+                        keyboardType="numeric"
+                        value={formData.delivery_range}
+                        onChangeText={(val) => handleInputChange('delivery_range', val)}
+                        style={styles.input}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </>

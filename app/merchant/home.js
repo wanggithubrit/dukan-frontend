@@ -1155,13 +1155,13 @@ export default function MerchantHome() {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
-                const isPremium = shop?.plan && ['pro', 'pro_plus'].includes(String(shop.plan).toLowerCase());
-                if (isPremium) {
+                const isProPlus = shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus';
+                if (isProPlus) {
                   router.push('/notifications');
                 } else {
                   Alert.alert(
-                    'Upgrade to Pro',
-                    'Notification history is a premium feature exclusive to Pro and Pro Plus subscription tiers.',
+                    'Upgrade to Pro Plus',
+                    'Notification history is a premium feature exclusive to the Pro Plus subscription tier.',
                     [
                       { text: 'Cancel', style: 'cancel' },
                       { text: 'Upgrade Now', onPress: () => router.push('/merchant/profile') }
@@ -1179,9 +1179,9 @@ export default function MerchantHome() {
               }}
             >
               <Ionicons
-                name={shop?.plan && ['pro', 'pro_plus'].includes(String(shop.plan).toLowerCase()) ? "notifications" : "notifications-outline"}
+                name={shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? "notifications" : "notifications-outline"}
                 size={20}
-                color={shop?.plan && ['pro', 'pro_plus'].includes(String(shop.plan).toLowerCase()) ? '#2F5D50' : '#8E9A96'}
+                color={shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? '#2F5D50' : '#8E9A96'}
               />
             </TouchableOpacity>
             <Image source={require('../../assets/images/logo_round.png')} style={styles.headerLogo} />
