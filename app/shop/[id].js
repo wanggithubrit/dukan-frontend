@@ -1030,7 +1030,9 @@ const ShopListHeader = memo(({
         <View style={s.infoTopRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Text style={s.shopName}>{shop.name}</Text>
+              <Text style={s.shopName}>
+                {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{shop.name}
+              </Text>
               {isProPlus ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0A5C43', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 }}>
                   <Ionicons name="shield-checkmark" size={10} color="#FFFFFF" />

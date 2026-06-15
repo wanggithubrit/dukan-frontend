@@ -416,7 +416,7 @@ const ShopCard = React.memo(({ item, onPress }) => {
 
         <View style={styles.cardBody}>
           <Text style={styles.cardName} numberOfLines={1}>
-            {item.name}
+            {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{item.name}
           </Text>
 
           {catKey && catKey !== 'All' && (
@@ -568,7 +568,7 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
 
         <View style={styles.openNowBody}>
           <Text style={styles.openNowName} numberOfLines={1}>
-            {item.name}
+            {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{item.name}
           </Text>
           {catKey && catKey !== 'All' && (
             <Text style={[styles.openNowCat, { color: catColor.icon }]}>{catKey}</Text>
@@ -1269,7 +1269,9 @@ export default function MerchantHome() {
                   </View>
                   <View style={styles.shopInfo}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
+                      <Text style={styles.shopName} numberOfLines={1}>
+                        {shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? '✅ ' : (shop?.plan && String(shop.plan).toLowerCase() === 'pro' ? '⭐ ' : '')}{shop.name}
+                      </Text>
                       {shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? (
                         <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#1D9BF0', position: 'relative', top: 0, right: 0, width: 20, height: 20, borderRadius: 10 }]}> 
                           <Ionicons name="checkmark-circle" size={11} color="#FFFFFF" />

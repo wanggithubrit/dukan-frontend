@@ -389,7 +389,7 @@ const ShopCard = React.memo(({ item, onPress }) => {
         {/* Body Section */}
         <View style={s.cardBody}>
           <Text style={s.cardName} numberOfLines={1}>
-            {item.name}
+            {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{item.name}
           </Text>
 
           {catKey && catKey !== 'All' && (
@@ -554,7 +554,7 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
 
         <View style={s.openNowBody}>
           <Text style={s.openNowName} numberOfLines={1}>
-            {item.name}
+            {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{item.name}
           </Text>
           {catKey && catKey !== 'All' && (
             <Text style={[s.openNowCat, { color: catColor.icon }]}>{catKey}</Text>
