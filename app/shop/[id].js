@@ -488,7 +488,7 @@ const BannerCarousel = memo(({ banners, onPressBanner }) => {
 });
 BannerCarousel.displayName = 'BannerCarousel';
 
-const ItemModal = memo(({ item, visible, onClose, shop }) => {
+const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
   const anim = useRef(new Animated.Value(0)).current;
   const [activeImage, setActiveImage] = useState(0);
   const carouselRef = useRef(null);
@@ -653,12 +653,13 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
                         Alert.alert('Out of Stock', 'This item is currently out of stock.');
                         return;
                       }
-                      setShowOrderForm(true);
+                      onAddToCart && onAddToCart(item, 1);
+                      onClose();
                     }}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="cart" size={20} color="#fff" />
-                    <Text style={s.modalOrderBtnText}>Order Now</Text>
+                    <Text style={s.modalOrderBtnText}>Add to Cart</Text>
                   </TouchableOpacity>
                 )}
 
@@ -893,6 +894,267 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
   );
 });
 ItemModal.displayName = 'ItemModal';
+
+const CartModal = memo(({ visible, onClose, cart, setCart, shop }) => {
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custAddr, setCustAddr] = useState('');
+  const [custNotes, setCustNotes] = useState('');
+  const [custLat, setCustLat] = useState('');
+  const [custLon, setCustLon] = useState('');
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+      AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  const subtotal = cart.reduce((sum, entry) => sum + (entry.item.price || 0) * entry.quantity, 0);
+
+  const handleUpdateQty = (itemId, change) => {
+    setCart(prev => {
+      return prev.map(entry => {
+        if (entry.item.id === itemId) {
+          const newQty = entry.quantity + change;
+          if (newQty <= 0) return null;
+          return { ...entry, quantity: newQty };
+        }
+        return entry;
+      }).filter(Boolean);
+    });
+  };
+
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) {
+      Alert.alert('Empty Cart', 'Your cart is empty.');
+      return;
+    }
+    if (!custName.trim()) return Alert.alert('Required', 'Name is required');
+    if (!custPhone.trim()) return Alert.alert('Required', 'Phone number is required');
+    if (shop?.delivery_available && !custAddr.trim()) {
+      return Alert.alert('Required', 'Delivery address is required');
+    }
+
+    try {
+      setSubmittingOrder(true);
+
+      const promises = cart.map(entry => {
+        return fetch(`${BASE_URL}/api/orders/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            shop_id: shop.id,
+            item_id: entry.item.id,
+            quantity: entry.quantity,
+            customer_name: custName.trim(),
+            customer_phone: custPhone.trim(),
+            delivery_address: custAddr.trim(),
+            notes: custNotes.trim(),
+            customer_latitude: (custLat !== null && custLat !== undefined && String(custLat).trim()) ? parseFloat(custLat) : null,
+            customer_longitude: (custLon !== null && custLon !== undefined && String(custLon).trim()) ? parseFloat(custLon) : null,
+          })
+        });
+      });
+
+      const responses = await Promise.all(promises);
+      let successCount = 0;
+      for (const res of responses) {
+        if (res.ok) successCount++;
+      }
+
+      if (successCount === cart.length) {
+        await AsyncStorage.multiSet([
+          ['user_name', custName.trim()],
+          ['user_phone', custPhone.trim()]
+        ]);
+
+        Alert.alert('Success 🎉', `Successfully placed ${successCount} order requests!`);
+        setCart([]);
+        onClose();
+      } else {
+        Alert.alert('Partially Successful', `Placed ${successCount} of ${cart.length} orders successfully.`);
+      }
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.orderFormOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.orderFormContainer}>
+          <View style={s.orderFormHeader}>
+            <Text style={s.orderFormTitle}>Shopping Cart (Pro Plus Shop)</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={20} color={C.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} style={s.orderFormBody}>
+            {cart.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <Ionicons name="cart-outline" size={48} color={C.textLight} />
+                <Text style={{ fontSize: 14, color: C.textMid, marginTop: 8 }}>Your cart is empty</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={s.formLabel}>ITEMS</Text>
+                {cart.map(entry => (
+                  <View key={entry.item.id} style={s.cartItemRow}>
+                    <Image source={{ uri: getImageUrl(getItemImages(entry.item)[0]) }} style={s.cartItemImg} />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={s.cartItemName} numberOfLines={1}>{entry.item.name}</Text>
+                      <Text style={s.cartItemPrice}>
+                        ₹{entry.item.price} x {entry.quantity} = ₹{(entry.item.price || 0) * entry.quantity}
+                      </Text>
+                    </View>
+                    <View style={s.qtyRow}>
+                      <TouchableOpacity style={s.qtyBtn} onPress={() => handleUpdateQty(entry.item.id, -1)}>
+                        <Text style={s.qtyBtnText}>-</Text>
+                      </TouchableOpacity>
+                      <Text style={{ fontSize: 13, fontWeight: '700', marginHorizontal: 8 }}>{entry.quantity}</Text>
+                      <TouchableOpacity style={s.qtyBtn} onPress={() => handleUpdateQty(entry.item.id, 1)}>
+                        <Text style={s.qtyBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+
+                <View style={{ marginVertical: 10, padding: 12, backgroundColor: '#F0F9F6', borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontWeight: '700', color: C.primary }}>Subtotal</Text>
+                  <Text style={{ fontWeight: '900', color: C.primary }}>₹{subtotal}</Text>
+                </View>
+
+                <Text style={s.formLabel}>Your Name *</Text>
+                <TextInput
+                  placeholder="Enter your name"
+                  value={custName}
+                  onChangeText={setCustName}
+                  style={s.formInput}
+                />
+
+                <Text style={s.formLabel}>Phone Number *</Text>
+                <TextInput
+                  placeholder="Enter phone number"
+                  keyboardType="phone-pad"
+                  value={custPhone}
+                  onChangeText={setCustPhone}
+                  style={s.formInput}
+                />
+
+                {shop?.delivery_available && (
+                  <>
+                    <Text style={s.formLabel}>Delivery Address (Required)</Text>
+                    <TextInput
+                      placeholder="Enter full delivery address"
+                      value={custAddr}
+                      onChangeText={setCustAddr}
+                      style={[s.formInput, s.formTextArea]}
+                      multiline
+                    />
+                    <View style={s.deliveryInfoCard}>
+                      <Text style={s.deliveryInfoText}>
+                        🚚 Delivery Charge: ₹{shop.delivery_charge} | Areas: {shop.delivery_area || 'All'}
+                      </Text>
+                      {shop.estimated_delivery_time && (
+                        <Text style={s.deliveryInfoTextSub}>
+                          🕒 Estimated Delivery Time: {shop.estimated_delivery_time}
+                        </Text>
+                      )}
+                    </View>
+                  </>
+                )}
+
+                <Text style={s.formLabel}>Notes (Optional)</Text>
+                <TextInput
+                  placeholder="Any special instructions for the merchant"
+                  value={custNotes}
+                  onChangeText={setCustNotes}
+                  style={[s.formInput, s.formTextArea]}
+                  multiline
+                />
+
+                <Text style={s.formLabel}>📍 Share Exact Location (Optional)</Text>
+                <TouchableOpacity
+                  style={s.locationBtn}
+                  onPress={async () => {
+                    try {
+                      let { status } = await Location.requestForegroundPermissionsAsync();
+                      if (status !== 'granted') {
+                        Alert.alert('Permission Denied', 'Location permission is required to fetch coordinates.');
+                        return;
+                      }
+                      let loc = null;
+                      try {
+                        loc = await Location.getCurrentPositionAsync({
+                          accuracy: Location.Accuracy.Balanced,
+                        });
+                      } catch (err) {
+                        console.warn("getCurrentPositionAsync failed, falling back to getLastKnownPositionAsync", err);
+                        loc = await Location.getLastKnownPositionAsync({});
+                      }
+                      if (loc?.coords) {
+                        setCustLat(loc.coords.latitude.toString());
+                        setCustLon(loc.coords.longitude.toString());
+                        Alert.alert('Success 📍', 'Fetched coordinates: ' + loc.coords.latitude.toFixed(5) + ', ' + loc.coords.longitude.toFixed(5));
+                      } else {
+                        Alert.alert('Location Error', 'Could not retrieve location coordinates. Please type them manually below.');
+                      }
+                    } catch (e) {
+                      Alert.alert('Error', 'Could not get current location: ' + e.message);
+                    }
+                  }}
+                >
+                  <Ionicons name="location" size={14} color="#fff" />
+                  <Text style={s.locationBtnText}>Get Current Location</Text>
+                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <TextInput
+                    placeholder="Latitude"
+                    value={custLat}
+                    onChangeText={setCustLat}
+                    keyboardType="numeric"
+                    style={[s.formInput, { flex: 1 }]}
+                  />
+                  <TextInput
+                    placeholder="Longitude"
+                    value={custLon}
+                    onChangeText={setCustLon}
+                    keyboardType="numeric"
+                    style={[s.formInput, { flex: 1 }]}
+                  />
+                </View>
+              </>
+            )}
+
+            <View style={{ height: 20 }} />
+          </ScrollView>
+
+          {cart.length > 0 && (
+            <TouchableOpacity
+              style={[s.submitOrderBtn, submittingOrder && { opacity: 0.7 }]}
+              onPress={handlePlaceOrder}
+              disabled={submittingOrder}
+            >
+              {submittingOrder ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={s.submitOrderBtnText}>Place Order (₹{subtotal})</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+});
+CartModal.displayName = 'CartModal';
 
 const Skeleton = memo(({ style }) => {
   const opacity = useRef(new Animated.Value(0.35)).current;
@@ -1239,6 +1501,8 @@ export default function ShopDetail() {
   const [modalVisible,  setModalVisible]  = useState(false);
   const [selectedBanner, setSelectedBanner] = useState(null);
   const [bannerRatio, setBannerRatio] = useState(1);
+  const [cart, setCart] = useState([]);
+  const [cartModalVisible, setCartModalVisible] = useState(false);
 
   useEffect(() => {
     if (!selectedBanner) return;
@@ -1432,13 +1696,54 @@ export default function ShopDetail() {
   return (
     <View style={s.safe}>
       <StatusBar style="light" />
-      <ItemModal item={selectedItem} visible={modalVisible} onClose={closeModal} shop={shop} />
+      <ItemModal
+        item={selectedItem}
+        visible={modalVisible}
+        onClose={closeModal}
+        shop={shop}
+        onAddToCart={(item, qty) => {
+          setCart(prev => {
+            const idx = prev.findIndex(i => i.item.id === item.id);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx].quantity += qty;
+              return updated;
+            } else {
+              return [...prev, { item, quantity: qty }];
+            }
+          });
+        }}
+      />
+
+      <CartModal
+        visible={cartModalVisible}
+        onClose={() => setCartModalVisible(false)}
+        cart={cart}
+        setCart={setCart}
+        shop={shop}
+      />
 
       <View style={[s.fabBack, { top: HEADER_TOP - 12 }]}>
         <GlassFab icon="chevron-back" onPress={goBack} />
       </View>
 
       <View style={[s.fabRight, { top: HEADER_TOP - 12 }]}>
+        {isProPlus && (
+          <TouchableOpacity
+            style={[s.glassFab, { marginRight: 4 }]}
+            onPress={() => setCartModalVisible(true)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="cart" size={19} color={C.white} />
+            {cart.length > 0 && (
+              <View style={s.cartBadge}>
+                <Text style={s.cartBadgeText}>
+                  {cart.reduce((sum, entry) => sum + entry.quantity, 0)}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
         <GlassFab icon="share-social-outline" onPress={handleShareShop} />
         <TouchableOpacity
           style={s.glassFab}
@@ -2176,6 +2481,46 @@ const s = StyleSheet.create({
     backgroundColor: '#f0f3f1',
     borderRadius: 16,
     padding: 6
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+    includeFontPadding: false,
+  },
+  cartItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E6EFEA',
+  },
+  cartItemImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#EEF2F0',
+  },
+  cartItemName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0D1F19',
+  },
+  cartItemPrice: {
+    fontSize: 12,
+    color: C.textMid,
+    marginTop: 2,
   },
   bannerDetailImage: {
     width: '100%',
