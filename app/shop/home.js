@@ -737,15 +737,7 @@ export default function Home() {
         const data = await res.json();
         if (!Array.isArray(data)) return;
 
-        setShops((prev) => {
-          if (
-            prev.length === data.length &&
-            prev[0]?.id === data[0]?.id
-          ) {
-            return prev;
-          }
-          return data;
-        });
+        setShops(data);
         AsyncStorage.setItem('shops_cache', JSON.stringify(data));
       } catch (e) {
         // silent fail
