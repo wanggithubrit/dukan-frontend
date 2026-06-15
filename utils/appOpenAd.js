@@ -58,7 +58,7 @@ export const isEligibleForAds = async () => {
       } catch (err) {
         console.debug('Background plan fetch failed in AppOpenAd:', err.message);
       }
-      return plan !== 'pro';
+      return plan !== 'pro' && plan !== 'pro_plus';
     }
     
     return true;

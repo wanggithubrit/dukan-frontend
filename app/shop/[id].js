@@ -35,8 +35,10 @@ import {
   View,
   Share,
   ActivityIndicator,
+  Image as RNImage,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import AdBanner from '../../components/AdBanner';
 import { trackShareEvent } from '../../utils/shareAnalytics';
 
@@ -498,6 +500,8 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
   const [custQty, setCustQty] = useState('1');
   const [custAddr, setCustAddr] = useState('');
   const [custNotes, setCustNotes] = useState('');
+  const [custLat, setCustLat] = useState('');
+  const [custLon, setCustLon] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
   useEffect(() => {
@@ -516,6 +520,8 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
       setCustQty('1');
       setCustAddr('');
       setCustNotes('');
+      setCustLat('');
+      setCustLon('');
       
       AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
       AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
@@ -743,7 +749,7 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
 
             {shop?.delivery_available && (
               <>
-                <Text style={s.formLabel}>Delivery Address (Optional)</Text>
+                <Text style={s.formLabel}>Delivery Address (Required)</Text>
                 <TextInput
                   placeholder="Enter full delivery address"
                   value={custAddr}
@@ -773,6 +779,61 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
               multiline
             />
 
+            {shop?.plan === 'pro_plus' && (
+              <>
+                <Text style={s.formLabel}>📍 Share Exact Location (Pro Plus Feature)</Text>
+                <TouchableOpacity
+                  style={s.locationBtn}
+                  onPress={async () => {
+                    try {
+                      let { status } = await Location.requestForegroundPermissionsAsync();
+                      if (status !== 'granted') {
+                        Alert.alert('Permission Denied', 'Location permission is required to fetch coordinates.');
+                        return;
+                      }
+                      let loc = null;
+                      try {
+                        loc = await Location.getCurrentPositionAsync({
+                          accuracy: Location.Accuracy.Balanced,
+                        });
+                      } catch (err) {
+                        console.warn("getCurrentPositionAsync failed, falling back to getLastKnownPositionAsync", err);
+                        loc = await Location.getLastKnownPositionAsync({});
+                      }
+                      if (loc?.coords) {
+                        setCustLat(loc.coords.latitude.toString());
+                        setCustLon(loc.coords.longitude.toString());
+                        Alert.alert('Success 📍', 'Fetched coordinates: ' + loc.coords.latitude.toFixed(5) + ', ' + loc.coords.longitude.toFixed(5));
+                      } else {
+                        Alert.alert('Location Error', 'Could not retrieve location coordinates. Please type them manually below.');
+                      }
+                    } catch (e) {
+                      Alert.alert('Error', 'Could not get current location: ' + e.message);
+                    }
+                  }}
+                >
+                  <Ionicons name="location" size={14} color="#fff" />
+                  <Text style={s.locationBtnText}>Get Current Location</Text>
+                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <TextInput
+                    placeholder="Latitude"
+                    value={custLat}
+                    onChangeText={setCustLat}
+                    keyboardType="numeric"
+                    style={[s.formInput, { flex: 1 }]}
+                  />
+                  <TextInput
+                    placeholder="Longitude"
+                    value={custLon}
+                    onChangeText={setCustLon}
+                    keyboardType="numeric"
+                    style={[s.formInput, { flex: 1 }]}
+                  />
+                </View>
+              </>
+            )}
+
             <View style={{ height: 20 }} />
           </ScrollView>
 
@@ -781,6 +842,7 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
             onPress={async () => {
               if (!custName.trim()) return Alert.alert('Required', 'Name is required');
               if (!custPhone.trim()) return Alert.alert('Required', 'Phone number is required');
+              if (shop?.delivery_available && !custAddr.trim()) return Alert.alert('Required', 'Delivery address is required');
               try {
                 setSubmittingOrder(true);
                 const res = await fetch(`${BASE_URL}/api/orders/`, {
@@ -793,7 +855,9 @@ const ItemModal = memo(({ item, visible, onClose, shop }) => {
                     customer_name: custName.trim(),
                     customer_phone: custPhone.trim(),
                     delivery_address: custAddr.trim(),
-                    notes: custNotes.trim()
+                    notes: custNotes.trim(),
+                    customer_latitude: (custLat !== null && custLat !== undefined && String(custLat).trim()) ? parseFloat(custLat) : null,
+                    customer_longitude: (custLon !== null && custLon !== undefined && String(custLon).trim()) ? parseFloat(custLon) : null,
                   })
                 });
                 const resJson = await res.json();
@@ -1065,7 +1129,7 @@ const ShopListHeader = memo(({
         {isPro && banners?.length > 0 && (
           <BannerCarousel banners={banners} onPressBanner={onPressBanner} />
         )}
-        <AdBanner />
+        {!isProPlus && <AdBanner />}
       </View>
 
       <View style={[s.section, { marginBottom: 0 }]}>
@@ -1171,6 +1235,26 @@ export default function ShopDetail() {
   const [selectedItem,  setSelectedItem]  = useState(null);
   const [modalVisible,  setModalVisible]  = useState(false);
   const [selectedBanner, setSelectedBanner] = useState(null);
+  const [bannerRatio, setBannerRatio] = useState(1);
+
+  useEffect(() => {
+    if (!selectedBanner) return;
+    const targetImg = selectedBanner.detail_image || selectedBanner.image;
+    if (targetImg) {
+      const imgUrl = getImageUrl(targetImg);
+      RNImage.getSize(
+        imgUrl,
+        (w, h) => {
+          if (w && h) {
+            setBannerRatio(w / h);
+          }
+        },
+        () => {
+          setBannerRatio(1);
+        }
+      );
+    }
+  }, [selectedBanner]);
 
   const {
     shop, banners, media, items,
@@ -1462,13 +1546,13 @@ export default function ShopDetail() {
             {selectedBanner?.detail_image ? (
               <Image
                 source={{ uri: getImageUrl(selectedBanner.detail_image) }}
-                style={s.bannerDetailImage}
+                style={[s.bannerDetailImage, { aspectRatio: bannerRatio, height: undefined }]}
                 contentFit="contain"
               />
             ) : selectedBanner?.image ? (
               <Image
                 source={{ uri: getImageUrl(selectedBanner.image) }}
-                style={s.bannerDetailImage}
+                style={[s.bannerDetailImage, { aspectRatio: bannerRatio, height: undefined }]}
                 contentFit="contain"
               />
             ) : (
@@ -2048,6 +2132,22 @@ const s = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '800'
+  },
+  locationBtn: {
+    backgroundColor: '#0A5C43',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: 6
+  },
+  locationBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700'
   },
   bannerModalOverlay: {
     flex: 1,

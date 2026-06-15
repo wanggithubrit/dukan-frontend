@@ -123,7 +123,11 @@ export default function NotificationsScreen() {
     
     try {
       await fetch(`${BASE_URL}/api/notification/read/${item.id}/`, { method: 'POST' });
-      if (item.shop) router.push(`/shop/${item.shop}`);
+      if (item.type === 'order') {
+        router.push('/merchant/orders');
+      } else if (item.shop) {
+        router.push(`/shop/${item.shop}`);
+      }
     } catch (err) {
       console.error(err);
     }

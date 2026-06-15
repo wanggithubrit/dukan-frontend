@@ -659,7 +659,7 @@ export default function InventoryPage() {
         </View>
       </View>
 
-      <AdBanner />
+      {planType !== 'pro_plus' && <AdBanner />}
 
       {!creditStatus.is_pro && products.length >= creditStatus.product_limit && (
         <View style={styles.limitWarningBanner}>

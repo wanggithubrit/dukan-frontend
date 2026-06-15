@@ -402,7 +402,12 @@ const ShopCard = React.memo(({ item, onPress }) => {
             </Text>
           </View>
 
-          {isPremium && (
+          {isProPlus && (
+            <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#1D9BF0' }]}> 
+              <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
+            </View>
+          )}
+          {isPro && (
             <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: '#EAB308' }]}> 
               <Ionicons name="star" size={11} color="#FFFFFF" />
             </View>
@@ -549,7 +554,12 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
             <View style={[styles.openNowLiveDot, styles.openNowLiveDotGlow]} />
           </View>
 
-          {isPremium && (
+          {isProPlus && (
+            <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#1D9BF0' }]}> 
+              <Ionicons name="checkmark-circle" size={11} color="#FFFFFF" />
+            </View>
+          )}
+          {isPro && (
             <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: '#EAB308' }]}> 
               <Ionicons name="star" size={10} color="#FFFFFF" />
             </View>
@@ -617,6 +627,7 @@ export default function MerchantHome() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(false);
 
   // Marketplace Stats & State
   const [city, setCity] = useState('Loading...');
@@ -646,6 +657,8 @@ export default function MerchantHome() {
   });
   const [adLoaded, setAdLoaded] = useState(false);
   const [rewardedAdInstance, setRewardedAdInstance] = useState(null);
+
+  const isProPlus = shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus';
 
   const fetchCreditStatus = useCallback(async () => {
     try {
@@ -768,6 +781,19 @@ export default function MerchantHome() {
         if (data?.plan?.type) {
           AsyncStorage.setItem('plan', data.plan.type).catch(err => console.debug('AsyncStorage plan save failed:', err));
         }
+      }
+      // Fetch unread notifications
+      try {
+        const notifRes = await fetch(`${BASE_URL}/api/notifications/${userId}/`);
+        if (notifRes.ok) {
+          const notifData = await notifRes.json();
+          if (Array.isArray(notifData)) {
+            const hasUnread = notifData.some(n => !n.is_read);
+            setUnreadNotifications(hasUnread);
+          }
+        }
+      } catch (err) {
+        console.debug('Failed to fetch notifications:', err);
       }
       // Also fetch merchant credits status
       await fetchCreditStatus();
@@ -1182,6 +1208,7 @@ export default function MerchantHome() {
                 backgroundColor: '#EEF2F0',
                 alignItems: 'center',
                 justifyContent: 'center',
+                position: 'relative',
               }}
             >
               <Ionicons
@@ -1189,6 +1216,21 @@ export default function MerchantHome() {
                 size={20}
                 color={shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? '#2F5D50' : '#8E9A96'}
               />
+              {unreadNotifications && shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: '#E5484D',
+                    borderWidth: 1.5,
+                    borderColor: '#EEF2F0',
+                  }}
+                />
+              )}
             </TouchableOpacity>
             <Image source={require('../../assets/images/logo_round.png')} style={styles.headerLogo} />
           </View>
@@ -1227,11 +1269,15 @@ export default function MerchantHome() {
                   <View style={styles.shopInfo}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
-                      {PREMIUM_SET.has(String(shop?.plan || '').toLowerCase()) && (
+                      {shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? (
+                        <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#1D9BF0', position: 'relative', top: 0, right: 0, width: 20, height: 20, borderRadius: 10 }]}> 
+                          <Ionicons name="checkmark-circle" size={11} color="#FFFFFF" />
+                        </View>
+                      ) : (shop?.plan && String(shop.plan).toLowerCase() === 'pro') ? (
                         <View style={[styles.premiumBadge, styles.premiumGlow, { backgroundColor: '#EAB308', position: 'relative', top: 0, right: 0, width: 20, height: 20, borderRadius: 10 }]}> 
                           <Ionicons name="star" size={9} color="#FFFFFF" />
                         </View>
-                      )}
+                      ) : null}
                     </View>
                     <View style={styles.statusRow}>
                       <View style={[styles.statusPulse, { backgroundColor: shop.is_open ? '#10B981' : '#D1D5DB' }]} />
@@ -1343,7 +1389,7 @@ export default function MerchantHome() {
               <Action icon="settings-outline" label="Settings" onPress={() => router.push('/merchant/profile')} />
             </View>
 
-            <AdBanner />
+            {!isProPlus && <AdBanner />}
 
             {/* ── BANNERS ── */}
             {banners.length > 0 && (
@@ -1550,7 +1596,7 @@ export default function MerchantHome() {
               })}
             </ScrollView>
 
-            <AdBanner />
+            {!isProPlus && <AdBanner />}
 
             {/* PRODUCT RESULTS */}
             {search.length > 0 && productResults.length > 0 && (
@@ -2521,6 +2567,12 @@ const styles = StyleSheet.create({
   },
   premiumGlow: {
     shadowColor: '#FFD700',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  verifiedGlow: {
+    shadowColor: '#1D9BF0',
     shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 4,
