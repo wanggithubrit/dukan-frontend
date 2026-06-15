@@ -663,6 +663,23 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
                   </TouchableOpacity>
                 )}
 
+                {shop?.plan && String(shop.plan).toLowerCase() === 'pro' && (
+                  <TouchableOpacity
+                    style={[s.modalOrderBtn, item.quantity_status === 'out' && { opacity: 0.6 }]}
+                    onPress={() => {
+                      if (item.quantity_status === 'out') {
+                        Alert.alert('Out of Stock', 'This item is currently out of stock.');
+                        return;
+                      }
+                      setShowOrderForm(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="cart" size={20} color="#fff" />
+                    <Text style={s.modalOrderBtnText}>Order Now</Text>
+                  </TouchableOpacity>
+                )}
+
                 <View style={s.swipeHint}>
                   <View style={s.swipeBar} />
                 </View>
