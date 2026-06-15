@@ -1129,7 +1129,7 @@ const ShopListHeader = memo(({
         {isPro && banners?.length > 0 && (
           <BannerCarousel banners={banners} onPressBanner={onPressBanner} />
         )}
-        {!isProPlus && <AdBanner />}
+        {!isPro && <AdBanner />}
       </View>
 
       <View style={[s.section, { marginBottom: 0 }]}>

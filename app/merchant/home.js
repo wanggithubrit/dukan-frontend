@@ -659,6 +659,7 @@ export default function MerchantHome() {
   const [rewardedAdInstance, setRewardedAdInstance] = useState(null);
 
   const isProPlus = shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus';
+  const isPro = shop?.plan && ['pro', 'pro_plus'].includes(String(shop.plan).toLowerCase());
 
   const fetchCreditStatus = useCallback(async () => {
     try {
@@ -1389,7 +1390,7 @@ export default function MerchantHome() {
               <Action icon="settings-outline" label="Settings" onPress={() => router.push('/merchant/profile')} />
             </View>
 
-            {!isProPlus && <AdBanner />}
+            {!isPro && <AdBanner />}
 
             {/* ── BANNERS ── */}
             {banners.length > 0 && (
@@ -1596,7 +1597,7 @@ export default function MerchantHome() {
               })}
             </ScrollView>
 
-            {!isProPlus && <AdBanner />}
+            {!isPro && <AdBanner />}
 
             {/* PRODUCT RESULTS */}
             {search.length > 0 && productResults.length > 0 && (

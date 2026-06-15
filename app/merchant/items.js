@@ -659,7 +659,7 @@ export default function InventoryPage() {
         </View>
       </View>
 
-      {planType !== 'pro_plus' && <AdBanner />}
+      {!['pro', 'pro_plus'].includes(planType) && <AdBanner />}
 
       {!creditStatus.is_pro && products.length >= creditStatus.product_limit && (
         <View style={styles.limitWarningBanner}>
@@ -729,15 +729,22 @@ export default function InventoryPage() {
                       </View>
                     </View>
 
-                    {creditStatus.is_pro && (
+                    {true && (
                       <>
                         <View style={styles.imageSlotsRow}>
-                          {[
-                            { value: editImage1, label: 'Img 1', removeFlag: removeImage1, setter: setEditImage1, removeSetter: setRemoveImage1 },
-                            { value: editImage2, label: 'Img 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 },
-                            { value: editImage3, label: 'Img 3', removeFlag: removeImage3, setter: setEditImage3, removeSetter: setRemoveImage3 },
-                            ...((['pro', 'pro_plus'].includes(planType)) ? [{ value: editImage4, label: 'Img 4', removeFlag: removeImage4, setter: setEditImage4, removeSetter: setRemoveImage4 }] : [])
-                          ].map((slot, index) => (
+                          {(() => {
+                            const slots = [
+                              { value: editImage1, label: 'Img 1', removeFlag: removeImage1, setter: setEditImage1, removeSetter: setRemoveImage1 }
+                            ];
+                            if (planType === 'pro') {
+                              slots.push({ value: editImage2, label: 'Img 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 });
+                            } else if (planType === 'pro_plus') {
+                              slots.push({ value: editImage2, label: 'Img 2', removeFlag: removeImage2, setter: setEditImage2, removeSetter: setRemoveImage2 });
+                              slots.push({ value: editImage3, label: 'Img 3', removeFlag: removeImage3, setter: setEditImage3, removeSetter: setRemoveImage3 });
+                              slots.push({ value: editImage4, label: 'Img 4', removeFlag: removeImage4, setter: setEditImage4, removeSetter: setRemoveImage4 });
+                            }
+                            return slots;
+                          })().map((slot, index) => (
                             <TouchableOpacity
                               key={index}
                               style={styles.imageSlot}

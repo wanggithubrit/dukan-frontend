@@ -380,10 +380,11 @@ export default function MerchantProfile() {
                 </View>
                 <Text style={styles.planOptionDesc}>Perfect for small retail shops</Text>
                 <View style={styles.planOptionFeatures}>
-                  <Text style={styles.planFeatureText}>• Showcase up to 120 products</Text>
-                  <Text style={styles.planFeatureText}>• Upload up to 3 images per product</Text>
-                  <Text style={styles.planFeatureText}>• Premium badge on profile</Text>
-                  <Text style={styles.planFeatureText}>• Highlight shop with 5 cover images</Text>
+                  <Text style={styles.planFeatureText}>• Showcase up to 200 products</Text>
+                  <Text style={styles.planFeatureText}>• NO ADVERTISEMENTS</Text>
+                  <Text style={styles.planFeatureText}>• Upload up to 3 shop images</Text>
+                  <Text style={styles.planFeatureText}>• Up to 2 images per product</Text>
+                  <Text style={styles.planFeatureText}>• Enhanced shop presentation</Text>
                 </View>
               </TouchableOpacity>
 
@@ -405,11 +406,12 @@ export default function MerchantProfile() {
                 <Text style={styles.planOptionDesc}>Complete order management & delivery</Text>
                 <View style={styles.planOptionFeatures}>
                   <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Showcase up to 500 products</Text>
-                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• NO ADVERTISEMENTS</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Up to 5 shop images</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Up to 4 images per product</Text>
                   <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Customer Order Request Flow</Text>
                   <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Delivery Config (Charge, Area, Time)</Text>
                   <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Order Notifications & Statistics</Text>
-                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• 4 images per product</Text>
+                  <Text style={[styles.planFeatureText, { fontWeight: '600' }]}>• Priority Search Ranking & Badges</Text>
                 </View>
               </TouchableOpacity>
             </ScrollView>
