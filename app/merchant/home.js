@@ -223,17 +223,23 @@ const getGreeting = () => {
 
 const toKm = (d) => (d == null || d === '') ? 999 : Number(d);
 
+const getPlanRank = (plan) => {
+  const p = String(plan || '').toLowerCase();
+  if (p === 'pro_plus') return 0;
+  if (p === 'pro') return 1;
+  return 2;
+};
+
 const byDistance = (a, b) => {
   const distA = toKm(a.distance);
   const distB = toKm(b.distance);
   if (distA !== distB) return distA - distB;
-  const aPlan = String(a?.plan || '').toLowerCase();
-  const bPlan = String(b?.plan || '').toLowerCase();
-  const aPremium = PREMIUM_SET.has(aPlan);
-  const bPremium = PREMIUM_SET.has(bPlan);
-  if (aPremium && !bPremium) return -1;
-  if (!aPremium && bPremium) return 1;
-  return 0;
+
+  const rankA = getPlanRank(a?.plan);
+  const rankB = getPlanRank(b?.plan);
+  if (rankA !== rankB) return rankA - rankB;
+
+  return String(a?.name || '').localeCompare(String(b?.name || ''));
 };
 
 // ─── sub-components ──────────────────────────────────────────────────────────

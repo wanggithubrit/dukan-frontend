@@ -1034,13 +1034,14 @@ const ShopListHeader = memo(({
                 {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{shop.name}
               </Text>
               {isProPlus ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0A5C43', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 }}>
-                  <Ionicons name="shield-checkmark" size={10} color="#FFFFFF" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#A855F7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 }}>
+                  <Ionicons name="checkmark-circle" size={10} color="#FFFFFF" />
                   <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '800' }}>PRO PLUS</Text>
                 </View>
               ) : isPro ? (
-                <View style={{ backgroundColor: '#EAB308', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', shadowColor: '#FFD700', shadowOpacity: 0.5, shadowRadius: 4, elevation: 2 }}>
-                  <Ionicons name="star" size={9} color="#FFFFFF" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#2F5D50', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 }}>
+                  <Ionicons name="star" size={10} color="#FFFFFF" />
+                  <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '800' }}>PRO</Text>
                 </View>
               ) : null}
             </View>
