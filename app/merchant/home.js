@@ -403,7 +403,7 @@ const ShopCard = React.memo(({ item, onPress }) => {
           </View>
 
           {isProPlus && (
-            <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#1D9BF0' }]}> 
+            <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#A855F7' }]}> 
               <Ionicons name="checkmark-circle" size={13} color="#FFFFFF" />
             </View>
           )}
@@ -555,7 +555,7 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
           </View>
 
           {isProPlus && (
-            <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#1D9BF0' }]}> 
+            <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#A855F7' }]}> 
               <Ionicons name="checkmark-circle" size={11} color="#FFFFFF" />
             </View>
           )}
@@ -1273,7 +1273,7 @@ export default function MerchantHome() {
                         {shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? '✅ ' : (shop?.plan && String(shop.plan).toLowerCase() === 'pro' ? '⭐ ' : '')}{shop.name}
                       </Text>
                       {shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' ? (
-                        <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#1D9BF0', position: 'relative', top: 0, right: 0, width: 20, height: 20, borderRadius: 10 }]}> 
+                        <View style={[styles.premiumBadge, styles.verifiedGlow, { backgroundColor: '#A855F7', position: 'relative', top: 0, right: 0, width: 20, height: 20, borderRadius: 10 }]}> 
                           <Ionicons name="checkmark-circle" size={11} color="#FFFFFF" />
                         </View>
                       ) : (shop?.plan && String(shop.plan).toLowerCase() === 'pro') ? (
@@ -2575,7 +2575,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   verifiedGlow: {
-    shadowColor: '#1D9BF0',
+    shadowColor: '#A855F7',
     shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 4,

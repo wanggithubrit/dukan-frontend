@@ -375,7 +375,7 @@ const ShopCard = React.memo(({ item, onPress }) => {
 
           {/* Premium Badge */}
           {isProPlus && (
-            <View style={[s.premiumBadge, s.verifiedGlow, { backgroundColor: '#1D9BF0' }]}> 
+            <View style={[s.premiumBadge, s.verifiedGlow, { backgroundColor: '#A855F7' }]}> 
               <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
             </View>
           )}
@@ -541,7 +541,7 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
 
           {/* Premium Badge */}
           {isProPlus && (
-            <View style={[s.premiumBadge, s.verifiedGlow, { backgroundColor: '#1D9BF0' }]}> 
+            <View style={[s.premiumBadge, s.verifiedGlow, { backgroundColor: '#A855F7' }]}> 
               <Ionicons name="checkmark-circle" size={11} color="#FFFFFF" />
             </View>
           )}
@@ -1998,7 +1998,7 @@ function getStyles(theme) { Object.assign(C, theme || {}); return StyleSheet.cre
     elevation: 4,
   },
   verifiedGlow: {
-    shadowColor: '#1D9BF0',
+    shadowColor: '#A855F7',
     shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 4,
