@@ -1386,6 +1386,16 @@ export default function MerchantHome() {
               <Stat label="Followers" value={stats.followers} icon="heart-outline" />
               <View style={styles.statDivider} />
               <Stat label="Views (Week)" value={stats.views} icon="eye-outline" />
+              {['pro', 'pro_plus'].includes(shop?.plan) && (
+                <>
+                  <View style={styles.statDivider} />
+                  <Stat 
+                    label="Rating" 
+                    value={shop?.average_rating ? `${Number(shop.average_rating).toFixed(1)} (${shop.total_ratings || 0})` : '0.0 (0)'} 
+                    icon="star-outline" 
+                  />
+                </>
+              )}
             </View>
 
             {/* ── QUICK ACTIONS ── */}

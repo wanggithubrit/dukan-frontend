@@ -49,7 +49,10 @@ export default function EditShop() {
     delivery_charge: '0',
     delivery_area: '',
     estimated_delivery_time: '',
-    delivery_range: '10'
+    delivery_range: '10',
+    cod_allowed: true,
+    online_payment_allowed: true,
+    payment_policy: 'both'
   });
 
   const [timePickerVisible, setTimePickerVisible] = useState(false);
@@ -167,7 +170,10 @@ export default function EditShop() {
           delivery_charge: data.shop.delivery_charge ? String(data.shop.delivery_charge) : '0',
           delivery_area: data.shop.delivery_area || '',
           estimated_delivery_time: data.shop.estimated_delivery_time || '',
-          delivery_range: data.shop.delivery_range ? String(data.shop.delivery_range) : '10'
+          delivery_range: data.shop.delivery_range ? String(data.shop.delivery_range) : '10',
+          cod_allowed: data.shop.cod_allowed !== false,
+          online_payment_allowed: data.shop.online_payment_allowed !== false,
+          payment_policy: data.shop.payment_policy || 'both'
         });
       }
     } catch (err) {
@@ -213,7 +219,8 @@ export default function EditShop() {
           longitude: coords?.longitude,
           opening_time: formData.opening_time || null,
           closing_time: formData.closing_time || null,
-          auto_reminder_enabled: formData.auto_reminder_enabled
+          auto_reminder_enabled: formData.auto_reminder_enabled,
+          payment_policy: formData.payment_policy
         }),
       });
       const data = await res.json();
@@ -229,10 +236,13 @@ export default function EditShop() {
           },
           body: JSON.stringify({
             delivery_available: formData.delivery_available,
-            delivery_charge: formData.delivery_charge ? parseFloat(formData.delivery_charge) : 0,
+            delivery_charge: formData.delivery_charge || '0.0',
             delivery_area: formData.delivery_area,
             estimated_delivery_time: formData.estimated_delivery_time,
             delivery_range: formData.delivery_range ? parseInt(formData.delivery_range, 10) : 10,
+            cod_allowed: true,
+            online_payment_allowed: false,
+            payment_policy: formData.payment_policy
           }),
         });
         const deliveryData = await deliveryRes.json();
@@ -264,28 +274,26 @@ export default function EditShop() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.safeArea}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-          <StatusBar barStyle="dark-content" />
-          
-          <View style={styles.innerContainer}>
-            <View style={styles.header}>
-              <TouchableOpacity 
-                onPress={() => router.back()} 
-                style={styles.backButton}
-              >
-          <Ionicons name="arrow-back" size={24} color="#1A332D" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Shop Profile</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar barStyle="dark-content" />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
+      >
+        <View style={styles.innerContainer}>
+          <View style={styles.header}>
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1A332D" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Shop Profile</Text>
+            <View style={{ width: 40 }} />
+          </View>
 
-      <ScrollView 
+          <ScrollView 
         style={styles.container} 
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -433,10 +441,9 @@ export default function EditShop() {
 
               {formData.delivery_available && (
                 <>
-                  <Text style={styles.label}>Delivery Charge (₹)</Text>
+                  <Text style={styles.label}>Delivery Charge (₹ or text)</Text>
                   <TextInput
-                    placeholder="e.g. 30"
-                    keyboardType="numeric"
+                    placeholder="e.g. 30 or Depends on distance"
                     value={formData.delivery_charge}
                     onChangeText={(val) => handleInputChange('delivery_charge', val)}
                     style={styles.input}
@@ -475,6 +482,42 @@ export default function EditShop() {
             </>
           )}
         </View>
+
+        <Text style={[styles.label, { marginTop: 10 }]}>Payment Option Policy</Text>
+            <View style={{ gap: 8, marginTop: 4, marginBottom: 16 }}>
+              {[
+                { key: 'cod', label: 'Cash on Delivery (COD) only' },
+                { key: 'contact', label: 'Merchant contact only (No COD)' },
+                { key: 'both', label: 'COD or Merchant contact for payment' },
+              ].map((opt) => {
+                const isSelected = formData.payment_policy === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 12,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: isSelected ? '#2F5D50' : '#E8EFEA',
+                      backgroundColor: isSelected ? '#F3FBF9' : '#fff',
+                      gap: 8,
+                    }}
+                    onPress={() => handleInputChange('payment_policy', opt.key)}
+                  >
+                    <Ionicons
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={16}
+                      color={isSelected ? '#2F5D50' : '#8EAF9D'}
+                    />
+                    <Text style={{ fontSize: 13, fontWeight: isSelected ? '700' : '500', color: isSelected ? '#2F5D50' : '#4E6A62' }}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
         <TouchableOpacity
           style={[styles.btn, saving && { opacity: 0.7 }]}
@@ -596,10 +639,9 @@ export default function EditShop() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-          </View>
-        </SafeAreaView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

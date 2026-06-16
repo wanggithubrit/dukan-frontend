@@ -547,7 +547,13 @@ export default function MerchantOrders() {
                       <Text style={styles.detailLabel}>Customer:</Text>
                       <Text style={styles.detailValue}>{order.customer_name}</Text>
                     </View>
-
+                    <View style={styles.detailRow}>
+                      <Ionicons name="card-outline" size={15} color={C.textSoft} style={{ marginRight: 8, marginTop: 1 }} />
+                      <Text style={styles.detailLabel}>Payment:</Text>
+                      <Text style={[styles.detailValue, { fontWeight: 'bold', color: '#D97706' }]}>
+                        Cash on Delivery
+                      </Text>
+                    </View>
                     {order.delivery_address ? (
                       <View style={styles.detailRow}>
                         <Ionicons name="location-outline" size={15} color={C.textSoft} style={{ marginRight: 8, marginTop: 1 }} />
@@ -565,13 +571,13 @@ export default function MerchantOrders() {
                     ) : null}
 
                     {hasGPS(order) ? (
-                      <View style={[styles.detailRow, { alignItems: 'center' }]}>
-                        <Ionicons name="navigate-outline" size={15} color={C.textSoft} style={{ marginRight: 8 }} />
+                      <View style={[styles.detailRow, { alignItems: 'flex-start' }]}>
+                        <Ionicons name="navigate-outline" size={15} color={C.textSoft} style={{ marginRight: 8, marginTop: 2 }} />
                         <Text style={styles.detailLabel}>Coordinates:</Text>
-                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Text style={[styles.detailValue, { flex: 0 }]}>{order.customer_latitude || 'N/A'}, {order.customer_longitude || 'N/A'}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.detailValue}>{order.customer_latitude || 'N/A'}, {order.customer_longitude || 'N/A'}</Text>
                           <TouchableOpacity 
-                            style={styles.pinBtn}
+                            style={[styles.pinBtn, { marginTop: 5, alignSelf: 'flex-start' }]}
                             onPress={() => {
                               const url = `https://www.google.com/maps/search/?api=1&query=${order.customer_latitude},${order.customer_longitude}`;
                               Linking.openURL(url).catch(() => Alert.alert("Error", "Could not open map"));

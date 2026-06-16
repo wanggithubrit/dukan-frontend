@@ -117,8 +117,19 @@ export default function Profile() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const handleOpenProfileModal = useCallback(() => {
+    setName(user?.name || '');
+    setPhone(user?.phone || '');
+    setAddress(user?.address || '');
+    setShowProfileModal(true);
+  }, [user]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -146,14 +157,45 @@ export default function Profile() {
       if (!res.ok) return;
       const data = await res.json();
       setUser({ ...data, avatar: savedAvatar || data.avatar });
+      setName(data.name || '');
+      setPhone(data.phone || '');
+      setAddress(data.address || '');
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, [router]);
 
+  const handleSaveProfile = useCallback(async () => {
+    setSavingProfile(true);
+    try {
+      const token = (await AsyncStorage.getItem('token')) || (await AsyncStorage.getItem('access_token'));
+      const res = await fetch(`${BASE_URL}/api/profile/update/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name, phone, address }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUser(u => ({ ...u, name: data.name, phone: data.phone, address: data.address }));
+        await Promise.all([
+          AsyncStorage.setItem('cust_name', name),
+          AsyncStorage.setItem('cust_phone', phone)
+        ]);
+        Alert.alert('Success', 'Profile details saved successfully!');
+        setShowProfileModal(false);
+      } else {
+        Alert.alert('Error', 'Failed to save profile details.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  }, [name, phone, address]);
+
   const updateAvatar = useCallback(async (key) => {
     if (!key) return;
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = (await AsyncStorage.getItem('token')) || (await AsyncStorage.getItem('access_token'));
       const res = await fetch(`${BASE_URL}/api/avatar/update/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -178,7 +220,7 @@ export default function Profile() {
     }
     setDeleteLoading(true);
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = (await AsyncStorage.getItem('token')) || (await AsyncStorage.getItem('access_token'));
       const res = await fetch(`${BASE_URL}/api/auth/delete/`, {
         method: 'POST',
         headers: {
@@ -223,7 +265,7 @@ export default function Profile() {
     if (!feedback.trim() || sending) return;
     setSending(true);
     try {
-      const token = await AsyncStorage.getItem('access_token');
+      const token = (await AsyncStorage.getItem('token')) || (await AsyncStorage.getItem('access_token'));
       const res = await fetch(`${BASE_URL}/api/feedback/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -343,6 +385,24 @@ export default function Profile() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>ACCOUNT</Text>
           <View style={s.card}>
+            <MenuRow
+              icon="person-outline"
+              iconColor="#2F5D50"
+              iconBg="rgba(47,93,80,0.15)"
+              label="Edit Delivery Details"
+              sublabel="Name, phone, and delivery address"
+              onPress={handleOpenProfileModal}
+            />
+            <View style={s.divider} />
+            <MenuRow
+              icon="receipt-outline"
+              iconColor="#0D9488"
+              iconBg="rgba(13,148,136,0.15)"
+              label="My Orders"
+              sublabel="Track and view order history"
+              onPress={() => router.push('/orders')}
+            />
+            <View style={s.divider} />
             <MenuRow
               icon="heart"
               iconColor="#1b7f34ff"
@@ -479,6 +539,96 @@ export default function Profile() {
           </View>
         </Modal>
 
+        {/* Edit Profile Modal */}
+        <Modal
+          visible={showProfileModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => {
+            if (!savingProfile) setShowProfileModal(false);
+          }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <View style={s.modalOverlay}>
+              <View style={s.modalCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 }}>
+                  <Text style={s.modalTitle}>Delivery Details</Text>
+                  <TouchableOpacity onPress={() => setShowProfileModal(false)} disabled={savingProfile}>
+                    <Ionicons name="close" size={20} color={C.textHi} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ width: '100%', gap: 12 }}>
+                  <View style={s.formField}>
+                    <Text style={s.fieldLabel}>YOUR NAME</Text>
+                    <TextInput
+                      placeholder="Enter full name"
+                      placeholderTextColor="#A0BAB4"
+                      value={name}
+                      onChangeText={setName}
+                      style={s.modalInput}
+                      selectionColor={C.primary}
+                    />
+                  </View>
+
+                  <View style={s.formField}>
+                    <Text style={s.fieldLabel}>PHONE NUMBER</Text>
+                    <TextInput
+                      placeholder="Enter phone number"
+                      placeholderTextColor="#A0BAB4"
+                      keyboardType="phone-pad"
+                      value={phone}
+                      onChangeText={setPhone}
+                      style={s.modalInput}
+                      selectionColor={C.primary}
+                    />
+                  </View>
+
+                  <View style={s.formField}>
+                    <Text style={s.fieldLabel}>DELIVERY ADDRESS</Text>
+                    <TextInput
+                      placeholder="Enter full address"
+                      placeholderTextColor="#A0BAB4"
+                      multiline
+                      numberOfLines={3}
+                      value={address}
+                      onChangeText={setAddress}
+                      style={[s.modalInput, { height: 60, textAlignVertical: 'top', paddingTop: 8 }]}
+                      selectionColor={C.primary}
+                    />
+                  </View>
+                </View>
+
+                <View style={[s.modalBtnRow, { marginTop: 20 }]}>
+                  <TouchableOpacity
+                    style={[s.modalBtn, s.modalCancelBtn]}
+                    onPress={() => setShowProfileModal(false)}
+                    disabled={savingProfile}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={s.modalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.modalBtn, s.modalDeleteBtn, { backgroundColor: C.primary }]}
+                    onPress={handleSaveProfile}
+                    disabled={savingProfile}
+                    activeOpacity={0.8}
+                  >
+                    {savingProfile ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={[s.modalDeleteText, { color: '#fff' }]}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
         {/* SOCIAL */}
         <View style={s.section}>
           <Text style={s.sectionLabel}>FOLLOW US</Text>
@@ -522,6 +672,7 @@ export default function Profile() {
         {[
           { route: '/shop/home', icon: 'home',   iconOutline: 'home-outline',   label: 'Home'      },
           { route: '/favorites', icon: 'heart',  iconOutline: 'heart-outline',  label: 'Saved'     },
+          { route: '/cart',      icon: 'cart',   iconOutline: 'cart-outline',   label: 'Cart'      },
           { route: '/profile',   icon: 'person', iconOutline: 'person-outline', label: 'Profile'   },
         ].map(tab => {
           const active = pathname === tab.route;

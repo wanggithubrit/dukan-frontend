@@ -331,6 +331,7 @@ const removeFavorite = useCallback(async (shop_id) => {
   {[
     { route: '/shop/home', icon: 'home',   iconOutline: 'home-outline',   label: 'Home'      },
     { route: '/favorites', icon: 'heart',  iconOutline: 'heart-outline',  label: 'Saved'     },
+    { route: '/cart',      icon: 'cart',   iconOutline: 'cart-outline',   label: 'Cart'      },
     { route: '/profile',   icon: 'person', iconOutline: 'person-outline', label: 'Profile'   },
   ].map(tab => {
     const active = pathname === tab.route;

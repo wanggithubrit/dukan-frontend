@@ -5,8 +5,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -17,6 +19,7 @@ import {
   useState,
 } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
@@ -26,19 +29,17 @@ import {
   Modal,
   Platform,
   RefreshControl,
+  Image as RNImage,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  Share,
-  ActivityIndicator,
-  Image as RNImage,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Location from 'expo-location';
 import AdBanner from '../../components/AdBanner';
 import { trackShareEvent } from '../../utils/shareAnalytics';
 
@@ -52,6 +53,13 @@ const GAP = 10;
 const H_PAD = 16;
 const ITEM_WIDTH = (width - H_PAD * 2 - GAP * (COLS - 1)) / COLS;
 const CRED_CACHE_TTL = 5 * 60_000;
+
+const formatDeliveryCharge = (charge) => {
+  if (!charge) return 'Free';
+  const parsed = parseFloat(charge);
+  if (isNaN(parsed)) return charge;
+  return `₹${charge}`;
+};
 
 const C = {
   primary:      '#0E5C42',
@@ -413,6 +421,37 @@ const ItemRow = memo(({ items, rowIdx, onPress }) => (
 ));
 ItemRow.displayName = 'ItemRow';
 
+const ReviewRow = memo(({ review }) => (
+  <View style={s.reviewCard}>
+    <View style={s.reviewCardHead}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.reviewUser}>{review.username || 'Anonymous'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 2 }}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Ionicons
+              key={star}
+              name={review.rating >= star ? "star" : "star-outline"}
+              size={12}
+              color="#D97706"
+            />
+          ))}
+        </View>
+      </View>
+      <Text style={s.reviewDate}>
+        {new Date(review.created_at).toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })}
+      </Text>
+    </View>
+    <Text style={s.reviewText}>
+      {review.review || 'No comments written.'}
+    </Text>
+  </View>
+));
+ReviewRow.displayName = 'ReviewRow';
+
 const BannerCarousel = memo(({ banners, onPressBanner }) => {
   const [offerIndex, setOfferIndex] = useState(0);
   const scrollRef  = useRef(null);
@@ -504,6 +543,7 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
   const [custLon, setCustLon] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
+
   useEffect(() => {
     Animated.spring(anim, {
       toValue: visible ? 1 : 0,
@@ -523,8 +563,35 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
       setCustLat('');
       setCustLon('');
       
-      AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
-      AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+      const loadProfile = async () => {
+        try {
+          const userId = await AsyncStorage.getItem('user_id');
+          if (userId) {
+            const res = await fetch(`${BASE_URL}/api/user/${userId}/`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.name) setCustName(data.name);
+              else AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+
+              if (data.phone) setCustPhone(data.phone);
+              else AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+
+              if (data.address) setCustAddr(data.address);
+            } else {
+              AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+              AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+            }
+          } else {
+            AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+            AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+          }
+        } catch (e) {
+          AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+          AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+        }
+      };
+
+      loadProfile();
     }
   }, [visible, item]);
 
@@ -646,38 +713,38 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
                 {item.description ? <Text style={s.modalDesc}>{item.description}</Text> : null}
                 
                 {shop?.plan && String(shop.plan).toLowerCase() === 'pro_plus' && (
-                  <TouchableOpacity
-                    style={[s.modalOrderBtn, item.quantity_status === 'out' && { opacity: 0.6 }]}
-                    onPress={() => {
-                      if (item.quantity_status === 'out') {
-                        Alert.alert('Out of Stock', 'This item is currently out of stock.');
-                        return;
-                      }
-                      onAddToCart && onAddToCart(item, 1);
-                      onClose();
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="cart" size={20} color="#fff" />
-                    <Text style={s.modalOrderBtnText}>Add to Cart</Text>
-                  </TouchableOpacity>
-                )}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 15 }}>
+                    <TouchableOpacity
+                      style={[s.modalOrderBtn, { flex: 1, marginTop: 0, backgroundColor: '#7E22CE' }, item.quantity_status === 'out' && { opacity: 0.6 }]}
+                      onPress={() => {
+                        if (item.quantity_status === 'out') {
+                          Alert.alert('Out of Stock', 'This item is currently out of stock.');
+                          return;
+                        }
+                        onAddToCart && onAddToCart(item, 1);
+                        onClose();
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="cart-outline" size={16} color="#fff" />
+                      <Text style={[s.modalOrderBtnText, { fontSize: 12 }]}>Add to Cart</Text>
+                    </TouchableOpacity>
 
-                {shop?.plan && String(shop.plan).toLowerCase() === 'pro' && (
-                  <TouchableOpacity
-                    style={[s.modalOrderBtn, item.quantity_status === 'out' && { opacity: 0.6 }]}
-                    onPress={() => {
-                      if (item.quantity_status === 'out') {
-                        Alert.alert('Out of Stock', 'This item is currently out of stock.');
-                        return;
-                      }
-                      setShowOrderForm(true);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="cart" size={20} color="#fff" />
-                    <Text style={s.modalOrderBtnText}>Order Now</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[s.modalOrderBtn, { flex: 1, marginTop: 0 }, item.quantity_status === 'out' && { opacity: 0.6 }]}
+                      onPress={() => {
+                        if (item.quantity_status === 'out') {
+                          Alert.alert('Out of Stock', 'This item is currently out of stock.');
+                          return;
+                        }
+                        setShowOrderForm(true);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="cart" size={16} color="#fff" />
+                      <Text style={[s.modalOrderBtnText, { fontSize: 12 }]}>Order Now</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
 
                 <View style={s.swipeHint}>
@@ -713,9 +780,13 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
 
     {/* Order Details Form Modal */}
     <Modal visible={showOrderForm} transparent animationType="slide" onRequestClose={() => setShowOrderForm(false)}>
-      <View style={s.orderFormOverlay}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.orderFormContainer}>
-          <View style={s.orderFormHeader}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <View style={s.orderFormOverlay}>
+          <View style={s.orderFormContainer}>
+            <View style={s.orderFormHeader}>
             <Text style={s.orderFormTitle}>Order Details</Text>
             <TouchableOpacity onPress={() => setShowOrderForm(false)}>
               <Ionicons name="close" size={20} color={C.text} />
@@ -777,7 +848,7 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
                 />
                 <View style={s.deliveryInfoCard}>
                   <Text style={s.deliveryInfoText}>
-                    🚚 Delivery Charge: ₹{shop.delivery_charge} | Areas: {shop.delivery_area || 'All'}
+                    🚚 Delivery Charge: {formatDeliveryCharge(shop.delivery_charge)} | Areas: {shop.delivery_area || 'All'}
                   </Text>
                   {shop.estimated_delivery_time && (
                     <Text style={s.deliveryInfoTextSub}>
@@ -797,61 +868,79 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
               multiline
             />
 
-            {shop?.plan === 'pro_plus' && (
-              <>
-                <Text style={s.formLabel}>📍 Share Exact Location (Pro Plus Feature)</Text>
-                <TouchableOpacity
-                  style={s.locationBtn}
-                  onPress={async () => {
-                    try {
-                      let { status } = await Location.requestForegroundPermissionsAsync();
-                      if (status !== 'granted') {
-                        Alert.alert('Permission Denied', 'Location permission is required to fetch coordinates.');
-                        return;
-                      }
-                      let loc = null;
-                      try {
-                        loc = await Location.getCurrentPositionAsync({
-                          accuracy: Location.Accuracy.Balanced,
-                        });
-                      } catch (err) {
-                        console.warn("getCurrentPositionAsync failed, falling back to getLastKnownPositionAsync", err);
-                        loc = await Location.getLastKnownPositionAsync({});
-                      }
-                      if (loc?.coords) {
-                        setCustLat(loc.coords.latitude.toString());
-                        setCustLon(loc.coords.longitude.toString());
-                        Alert.alert('Success 📍', 'Fetched coordinates: ' + loc.coords.latitude.toFixed(5) + ', ' + loc.coords.longitude.toFixed(5));
-                      } else {
-                        Alert.alert('Location Error', 'Could not retrieve location coordinates. Please type them manually below.');
-                      }
-                    } catch (e) {
-                      Alert.alert('Error', 'Could not get current location: ' + e.message);
-                    }
-                  }}
-                >
-                  <Ionicons name="location" size={14} color="#fff" />
-                  <Text style={s.locationBtnText}>Get Current Location</Text>
-                </TouchableOpacity>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  <TextInput
-                    placeholder="Latitude"
-                    value={custLat}
-                    onChangeText={setCustLat}
-                    keyboardType="numeric"
-                    style={[s.formInput, { flex: 1 }]}
-                  />
-                  <TextInput
-                    placeholder="Longitude"
-                    value={custLon}
-                    onChangeText={setCustLon}
-                    keyboardType="numeric"
-                    style={[s.formInput, { flex: 1 }]}
-                  />
-                </View>
-              </>
-            )}
-
+            <Text style={s.formLabel}>📍 Share Exact Location *</Text>
+            <TouchableOpacity
+              style={s.locationBtn}
+              onPress={async () => {
+                try {
+                  let { status } = await Location.requestForegroundPermissionsAsync();
+                  if (status !== 'granted') {
+                    Alert.alert('Permission Denied', 'Location permission is required to fetch coordinates.');
+                    return;
+                  }
+                  let loc = null;
+                  try {
+                    loc = await Location.getCurrentPositionAsync({
+                      accuracy: Location.Accuracy.Balanced,
+                    });
+                  } catch (err) {
+                    console.warn("getCurrentPositionAsync failed, falling back to getLastKnownPositionAsync", err);
+                    loc = await Location.getLastKnownPositionAsync({});
+                  }
+                  if (loc?.coords) {
+                    setCustLat(loc.coords.latitude.toString());
+                    setCustLon(loc.coords.longitude.toString());
+                    Alert.alert('Success 📍', 'Fetched coordinates: ' + loc.coords.latitude.toFixed(5) + ', ' + loc.coords.longitude.toFixed(5));
+                  } else {
+                    Alert.alert('Location Error', 'Could not retrieve location coordinates. Please type them manually below.');
+                  }
+                } catch (e) {
+                  Alert.alert('Error', 'Could not get current location: ' + e.message);
+                }
+              }}
+            >
+              <Ionicons name="location" size={14} color="#fff" />
+              <Text style={s.locationBtnText}>Get Current Location</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <TextInput
+                placeholder="Latitude"
+                value={custLat}
+                onChangeText={setCustLat}
+                keyboardType="numeric"
+                style={[s.formInput, { flex: 1 }]}
+              />
+              <TextInput
+                placeholder="Longitude"
+                value={custLon}
+                onChangeText={setCustLon}
+                keyboardType="numeric"
+                style={[s.formInput, { flex: 1 }]}
+              />
+            </View>
+            {/* Payment Method (COD Only) */}
+            <Text style={[s.formLabel, { marginTop: 12 }]}>Payment Method</Text>
+            <View style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              backgroundColor: '#F3FBF9', 
+              borderWidth: 1, 
+              borderColor: '#E2EFEB', 
+              borderRadius: 10, 
+              padding: 12, 
+              marginTop: 4,
+              marginBottom: 8, 
+              gap: 8 
+            }}>
+              <Ionicons name="cash-outline" size={18} color="#2F5D50" style={{ marginTop: 2 }} />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#2F5D50', flex: 1 }}>
+                {shop?.payment_policy === 'cod' 
+                  ? 'Cash on Delivery (COD)' 
+                  : shop?.payment_policy === 'contact' 
+                  ? 'Merchant may contact you for payment.' 
+                  : 'Cash on Delivery (COD) or merchant may contact you for payment.'}
+              </Text>
+            </View>
             <View style={{ height: 20 }} />
           </ScrollView>
 
@@ -861,11 +950,18 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
               if (!custName.trim()) return Alert.alert('Required', 'Name is required');
               if (!custPhone.trim()) return Alert.alert('Required', 'Phone number is required');
               if (shop?.delivery_available && !custAddr.trim()) return Alert.alert('Required', 'Delivery address is required');
+              if (!custLat || !custLon || !String(custLat).trim() || !String(custLon).trim()) {
+                return Alert.alert('Required', 'Please share your exact GPS location to place the order.');
+              }
               try {
                 setSubmittingOrder(true);
+                const { token } = await getCredentials();
                 const res = await fetch(`${BASE_URL}/api/orders/`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                  },
                   body: JSON.stringify({
                     shop_id: shop.id,
                     item_id: item.id,
@@ -876,6 +972,7 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
                     notes: custNotes.trim(),
                     customer_latitude: (custLat !== null && custLat !== undefined && String(custLat).trim()) ? parseFloat(custLat) : null,
                     customer_longitude: (custLon !== null && custLon !== undefined && String(custLon).trim()) ? parseFloat(custLon) : null,
+                    payment_method: 'COD',
                   })
                 });
                 const resJson = await res.json();
@@ -904,8 +1001,9 @@ const ItemModal = memo(({ item, visible, onClose, shop, onAddToCart }) => {
               <Text style={s.submitOrderBtnText}>Submit Order Request</Text>
             )}
           </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
     </>
   );
@@ -921,10 +1019,43 @@ const CartModal = memo(({ visible, onClose, cart, setCart, shop }) => {
   const [custLon, setCustLon] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
 
+
   useEffect(() => {
     if (visible) {
-      AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
-      AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+      setCustAddr('');
+      setCustNotes('');
+      setCustLat('');
+      setCustLon('');
+
+      const loadProfile = async () => {
+        try {
+          const userId = await AsyncStorage.getItem('user_id');
+          if (userId) {
+            const res = await fetch(`${BASE_URL}/api/user/${userId}/`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.name) setCustName(data.name);
+              else AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+
+              if (data.phone) setCustPhone(data.phone);
+              else AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+
+              if (data.address) setCustAddr(data.address);
+            } else {
+              AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+              AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+            }
+          } else {
+            AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+            AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+          }
+        } catch (e) {
+          AsyncStorage.getItem('user_name').then(val => val && setCustName(val));
+          AsyncStorage.getItem('user_phone').then(val => val && setCustPhone(val));
+        }
+      };
+
+      loadProfile();
     }
   }, [visible]);
 
@@ -955,14 +1086,21 @@ const CartModal = memo(({ visible, onClose, cart, setCart, shop }) => {
     if (shop?.delivery_available && !custAddr.trim()) {
       return Alert.alert('Required', 'Delivery address is required');
     }
+    if (!custLat || !custLon || !String(custLat).trim() || !String(custLon).trim()) {
+      return Alert.alert('Required', 'Please share your exact GPS location to place the order.');
+    }
 
     try {
       setSubmittingOrder(true);
+      const { token } = await getCredentials();
 
       const promises = cart.map(entry => {
         return fetch(`${BASE_URL}/api/orders/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify({
             shop_id: shop.id,
             item_id: entry.item.id,
@@ -973,6 +1111,7 @@ const CartModal = memo(({ visible, onClose, cart, setCart, shop }) => {
             notes: custNotes.trim(),
             customer_latitude: (custLat !== null && custLat !== undefined && String(custLat).trim()) ? parseFloat(custLat) : null,
             customer_longitude: (custLon !== null && custLon !== undefined && String(custLon).trim()) ? parseFloat(custLon) : null,
+            payment_method: 'COD',
           })
         });
       });
@@ -1077,7 +1216,7 @@ const CartModal = memo(({ visible, onClose, cart, setCart, shop }) => {
                     />
                     <View style={s.deliveryInfoCard}>
                       <Text style={s.deliveryInfoText}>
-                        🚚 Delivery Charge: ₹{shop.delivery_charge} | Areas: {shop.delivery_area || 'All'}
+                        🚚 Delivery Charge: {formatDeliveryCharge(shop.delivery_charge)} | Areas: {shop.delivery_area || 'All'}
                       </Text>
                       {shop.estimated_delivery_time && (
                         <Text style={s.deliveryInfoTextSub}>
@@ -1097,7 +1236,7 @@ const CartModal = memo(({ visible, onClose, cart, setCart, shop }) => {
                   multiline
                 />
 
-                <Text style={s.formLabel}>📍 Share Exact Location (Optional)</Text>
+                <Text style={s.formLabel}>📍 Share Exact Location *</Text>
                 <TouchableOpacity
                   style={s.locationBtn}
                   onPress={async () => {
@@ -1146,6 +1285,29 @@ const CartModal = memo(({ visible, onClose, cart, setCart, shop }) => {
                     keyboardType="numeric"
                     style={[s.formInput, { flex: 1 }]}
                   />
+                </View>
+                {/* Payment Method (COD Only) */}
+                <Text style={[s.formLabel, { marginTop: 12 }]}>Payment Method</Text>
+                <View style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  backgroundColor: '#F3FBF9', 
+                  borderWidth: 1, 
+                  borderColor: '#E2EFEB', 
+                  borderRadius: 10, 
+                  padding: 12, 
+                  marginTop: 4,
+                  marginBottom: 8, 
+                  gap: 8 
+                }}>
+                  <Ionicons name="cash-outline" size={18} color="#2F5D50" style={{ marginTop: 2 }} />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#2F5D50', flex: 1 }}>
+                    {shop?.payment_policy === 'cod' 
+                      ? 'Cash on Delivery (COD)' 
+                      : shop?.payment_policy === 'contact' 
+                      ? 'Merchant may contact you for payment.' 
+                      : 'Cash on Delivery (COD) or merchant may contact you for payment.'}
+                  </Text>
                 </View>
               </>
             )}
@@ -1290,6 +1452,17 @@ const ShopListHeader = memo(({
   setSearchQuery, onSearchFocus, onSearchBlur, clearSearch,
   reportStatus,
   onPressBanner,
+  activeTab,
+  setActiveTab,
+  reviews,
+  reviewsLoading,
+  userRating,
+  setUserRating,
+  userReview,
+  setUserReview,
+  submittingRating,
+  handleRatingSubmit,
+  userId,
 }) => {
   const hasPhone    = !!shop.phone;
   const hasWhatsApp = !!shop.whatsapp_number;
@@ -1310,7 +1483,7 @@ const ShopListHeader = memo(({
           <View style={{ flex: 1, paddingRight: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Text style={s.shopName}>
-                {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{shop.name}
+                {isProPlus ? '' : isPro ? '' : ''}{shop.name}
               </Text>
               {isProPlus ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#A855F7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 }}>
@@ -1324,7 +1497,15 @@ const ShopListHeader = memo(({
                 </View>
               ) : null}
             </View>
-            <CategoryPill label={shop.category} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <CategoryPill label={shop.category} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, gap: 3, borderWidth: 1, borderColor: '#FDE68A' }}>
+                <Ionicons name="star" size={10} color="#D97706" />
+                <Text style={{ fontSize: 9, color: '#D97706', fontWeight: '800' }}>
+                  {shop.average_rating ? Number(shop.average_rating).toFixed(1) : '0.0'} ({shop.total_ratings || 0})
+                </Text>
+              </View>
+            </View>
           </View>
           <View style={[s.statusChip, { backgroundColor: shop.is_open ? '#EDFBF2' : '#FCE8E6' }]}>
             <Text style={[s.statusText, { color: shop.is_open ? C.accent : '#EA4335' }]}>
@@ -1414,52 +1595,111 @@ const ShopListHeader = memo(({
         {!isPro && <AdBanner />}
       </View>
 
-      <View style={[s.section, { marginBottom: 0 }]}>
-        <View style={s.sectionHead}>
-          <View style={s.sectionAccent} />
-          <Text style={s.sectionTitle}>Items</Text>
-          <View style={s.itemCountPill}>
-            <Text style={s.itemCountText}>{filteredCount}</Text>
-          </View>
-          <View style={s.sparkleContainer}>
-            <Sparkle size={5} color={C.accent} delay={100} />
-          </View>
-        </View>
-
-        <Animated.View
-          style={[s.searchBar, searchFocused && s.searchBarActive]}
-          onLayout={onSearchBarLayout}
-        >
-          <Ionicons
-            name="search"
-            size={15}
-            color={searchFocused ? C.primary : C.textLight}
-          />
-          <TextInput
-            ref={searchRef}
-            style={s.searchInput}
-            placeholder="Search items…"
-            placeholderTextColor={C.textLight}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onFocus={onSearchFocus}
-            onBlur={onSearchBlur}
-            returnKeyType="search"
-            onSubmitEditing={Keyboard.dismiss}
-            includeFontPadding={false}
-            underlineColorAndroid="transparent"
-            selectionColor={C.primary}
-          />
-          {searchQuery.length > 0 && (
+      <View style={[s.section, { marginBottom: 12, marginTop: 12 }]}>
+        <View style={s.tabBarRow}>
+          <TouchableOpacity
+            style={[s.tabButton, activeTab === 'products' && s.tabButtonActive]}
+            onPress={() => setActiveTab('products')}
+          >
+            <Ionicons name="grid" size={14} color={activeTab === 'products' ? '#2F5D50' : '#8EAF9D'} />
+            <Text style={[s.tabButtonText, activeTab === 'products' && s.tabButtonTextActive]}>
+              Products ({filteredCount})
+            </Text>
+          </TouchableOpacity>
+          {['pro', 'pro_plus'].includes(shop?.plan) && (
             <TouchableOpacity
-              onPress={clearSearch}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={[s.tabButton, activeTab === 'reviews' && s.tabButtonActive]}
+              onPress={() => setActiveTab('reviews')}
             >
-              <Ionicons name="close-circle" size={16} color={C.textLight} />
+              <Ionicons name="star" size={14} color={activeTab === 'reviews' ? '#2F5D50' : '#8EAF9D'} />
+              <Text style={[s.tabButtonText, activeTab === 'reviews' && s.tabButtonTextActive]}>
+                Reviews ({reviews.length})
+              </Text>
             </TouchableOpacity>
           )}
-        </Animated.View>
+        </View>
       </View>
+
+      {activeTab === 'products' || !['pro', 'pro_plus'].includes(shop?.plan) ? (
+        <View style={[s.section, { marginBottom: 0 }]}>
+          <Animated.View
+            style={[s.searchBar, searchFocused && s.searchBarActive]}
+            onLayout={onSearchBarLayout}
+          >
+            <Ionicons
+              name="search"
+              size={15}
+              color={searchFocused ? C.primary : C.textLight}
+            />
+            <TextInput
+              ref={searchRef}
+              style={s.searchInput}
+              placeholder="Search items…"
+              placeholderTextColor={C.textLight}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={onSearchFocus}
+              onBlur={onSearchBlur}
+              returnKeyType="search"
+              onSubmitEditing={Keyboard.dismiss}
+              includeFontPadding={false}
+              underlineColorAndroid="transparent"
+              selectionColor={C.primary}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={clearSearch}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close-circle" size={16} color={C.textLight} />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        </View>
+      ) : (
+        <View style={s.section}>
+          {userId ? (
+            <View style={s.reviewFormBox}>
+              <Text style={s.reviewFormTitle}>Write a Review</Text>
+              <View style={s.starRatingRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setUserRating(star)}
+                    style={{ padding: 4 }}
+                  >
+                    <Ionicons
+                      name={userRating >= star ? "star" : "star-outline"}
+                      size={24}
+                      color="#D97706"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                placeholder="Write your review comments..."
+                value={userReview}
+                onChangeText={setUserReview}
+                style={[s.formInput, s.formTextArea, { minHeight: 60, marginTop: 10 }]}
+                multiline
+              />
+              <TouchableOpacity
+                style={[s.submitReviewBtn, submittingRating && { opacity: 0.6 }]}
+                onPress={handleRatingSubmit}
+                disabled={submittingRating}
+              >
+                <Text style={s.submitReviewBtnText}>
+                  {submittingRating ? 'Submitting...' : 'Submit Review'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={s.loginPromptBox}>
+              <Text style={s.loginPromptText}>Please log in to submit a review.</Text>
+            </View>
+          )}
+        </View>
+      )}
     </>
   );
 });
@@ -1521,6 +1761,75 @@ export default function ShopDetail() {
   const [cart, setCart] = useState([]);
   const [cartModalVisible, setCartModalVisible] = useState(false);
 
+  // Load cart on focus or shop change
+  useFocusEffect(
+    useCallback(() => {
+      if (!shop?.id) return;
+      const loadCart = async () => {
+        try {
+          const stored = await AsyncStorage.getItem('dukan_cart');
+          const globalCart = stored ? JSON.parse(stored) : [];
+          if (Array.isArray(globalCart)) {
+            const entry = globalCart.find(e => e.shop?.id === shop.id);
+            setCart(entry ? entry.items : []);
+          }
+        } catch (e) {
+          console.log('Error loading cart:', e);
+        }
+      };
+      loadCart();
+    }, [shop?.id])
+  );
+
+  const updateCartAndSave = async (updater) => {
+    try {
+      const stored = await AsyncStorage.getItem('dukan_cart');
+      let globalCart = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(globalCart)) globalCart = [];
+
+      setCart(prev => {
+        const updated = typeof updater === 'function' ? updater(prev) : updater;
+        
+        // inline logic to save updated to AsyncStorage immediately
+        (async () => {
+          try {
+            if (updated.length === 0) {
+              globalCart = globalCart.filter(entry => entry.shop?.id !== shop.id);
+            } else {
+              const existingIdx = globalCart.findIndex(entry => entry.shop?.id === shop.id);
+              const shopEntry = {
+                shop: {
+                  id: shop.id,
+                  name: shop.name,
+                  cover_image: shop.cover_image,
+                  image: shop.image,
+                  delivery_available: shop.delivery_available,
+                  delivery_charge: shop.delivery_charge,
+                  delivery_area: shop.delivery_area,
+                  estimated_delivery_time: shop.estimated_delivery_time,
+                  plan: shop.plan
+                },
+                items: updated
+              };
+              if (existingIdx >= 0) {
+                globalCart[existingIdx] = shopEntry;
+              } else {
+                globalCart.push(shopEntry);
+              }
+            }
+            await AsyncStorage.setItem('dukan_cart', JSON.stringify(globalCart));
+          } catch (e) {
+            console.log('Error saving cart:', e);
+          }
+        })();
+
+        return updated;
+      });
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
   useEffect(() => {
     if (!selectedBanner) return;
     const targetImg = selectedBanner.detail_image || selectedBanner.image;
@@ -1545,6 +1854,75 @@ export default function ShopDetail() {
     favorite, loading, refreshing, error,
     onRefresh, toggleFavorite,
   } = useShopData(id);
+
+  const [activeTab, setActiveTab] = useState('products'); // 'products' | 'reviews'
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [userRating, setUserRating] = useState(5);
+  const [userReview, setUserReview] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('user_id').then(val => setUserId(val));
+  }, []);
+
+  const fetchReviews = useCallback(async () => {
+    if (!shop?.id) return;
+    try {
+      setReviewsLoading(true);
+      const res = await fetch(`${BASE_URL}/api/shop/${shop.id}/ratings/`);
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(data || []);
+      }
+    } catch (e) {
+      console.log('Error fetching reviews:', e);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [shop?.id]);
+
+  useEffect(() => {
+    if (shop?.id) {
+      fetchReviews();
+    }
+  }, [shop?.id, fetchReviews]);
+
+  const handleRatingSubmit = async () => {
+    const userId = await AsyncStorage.getItem('user_id');
+    const token = await AsyncStorage.getItem('token') || await AsyncStorage.getItem('access_token');
+    if (!userId || !token) {
+      Alert.alert('Authentication Required', 'Please log in to submit a review.');
+      return;
+    }
+    try {
+      setSubmittingRating(true);
+      const res = await fetch(`${BASE_URL}/api/shop/rate/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          shop_id: shop.id,
+          rating: userRating,
+          review: userReview
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit review');
+      
+      Alert.alert('Success 🎉', 'Review submitted successfully! Thank you.');
+      setUserReview('');
+      fetchReviews();
+      onRefresh();
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
 
   const goBack = useCallback(() => router.back(), [router]);
 
@@ -1694,12 +2072,26 @@ export default function ShopDetail() {
   );
 
   const renderRow = useCallback(
-    ({ item: { row, rowIdx } }) => <ItemRow items={row} rowIdx={rowIdx} onPress={openItem} />,
-    [openItem]
+    ({ item }) => {
+      if (activeTab === 'products') {
+        const { row, rowIdx } = item;
+        return <ItemRow items={row} rowIdx={rowIdx} onPress={openItem} />;
+      } else {
+        return <ReviewRow review={item} />;
+      }
+    },
+    [activeTab, openItem]
   );
   const keyExtractor = useCallback(
-    ({ row, rowIdx }) => `row-${rowIdx}-${row.find(Boolean)?.id ?? rowIdx}`,
-    []
+    (item, index) => {
+      if (activeTab === 'products') {
+        const { row, rowIdx } = item;
+        return `row-${rowIdx}-${row.find(Boolean)?.id ?? rowIdx}`;
+      } else {
+        return `review-${item.id || index}`;
+      }
+    },
+    [activeTab]
   );
 
   const HEADER_TOP = insets.top + 8;
@@ -1719,7 +2111,7 @@ export default function ShopDetail() {
         onClose={closeModal}
         shop={shop}
         onAddToCart={(item, qty) => {
-          setCart(prev => {
+          updateCartAndSave(prev => {
             const idx = prev.findIndex(i => i.item.id === item.id);
             if (idx >= 0) {
               const updated = [...prev];
@@ -1736,7 +2128,7 @@ export default function ShopDetail() {
         visible={cartModalVisible}
         onClose={() => setCartModalVisible(false)}
         cart={cart}
-        setCart={setCart}
+        setCart={updateCartAndSave}
         shop={shop}
       />
 
@@ -1794,7 +2186,7 @@ export default function ShopDetail() {
       >
         <Animated.FlatList
           ref={scrollRef}
-          data={itemRows}
+          data={activeTab === 'products' ? itemRows : reviews}
           keyExtractor={keyExtractor}
           renderItem={renderRow}
           ListHeaderComponent={
@@ -1819,12 +2211,33 @@ export default function ShopDetail() {
               clearSearch={clearSearch}
               reportStatus={handleReportStatus}
               onPressBanner={setSelectedBanner}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              reviews={reviews}
+              reviewsLoading={reviewsLoading}
+              userRating={userRating}
+              setUserRating={setUserRating}
+              userReview={userReview}
+              setUserReview={setUserReview}
+              submittingRating={submittingRating}
+              handleRatingSubmit={handleRatingSubmit}
+              userId={userId}
             />
           }
           ListEmptyComponent={
-            filteredItems.length === 0
-              ? <ShopListEmpty searchQuery={searchQuery} />
-              : null
+            activeTab === 'products' ? (
+              <ShopListEmpty searchQuery={searchQuery} />
+            ) : reviewsLoading ? (
+              <View style={s.reviewsLoadingWrap}>
+                <ActivityIndicator size="small" color={C.primary} />
+                <Text style={s.reviewsLoadingText}>Loading reviews...</Text>
+              </View>
+            ) : (
+              <View style={s.reviewsEmptyWrap}>
+                <Ionicons name="chatbubbles-outline" size={36} color="#94A3B8" />
+                <Text style={s.reviewsEmptyText}>No reviews yet. Be the first to review!</Text>
+              </View>
+            )
           }
           onScroll={onScroll}
           scrollEventThrottle={16}
@@ -2057,6 +2470,151 @@ const s = StyleSheet.create({
   },
 
   section:     { marginTop: 12, paddingHorizontal: H_PAD },
+  tabBarRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 24,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  tabButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  tabButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  tabButtonTextActive: {
+    color: '#2F5D50',
+    fontWeight: '800',
+  },
+  reviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 0.5,
+  },
+  reviewCardHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  reviewUser: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  reviewDate: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  reviewText: {
+    fontSize: 12.5,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  reviewFormBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  reviewFormTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#1E293B',
+    marginBottom: 10,
+  },
+  starRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  submitReviewBtn: {
+    backgroundColor: '#2F5D50',
+    borderRadius: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  submitReviewBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  loginPromptBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+  loginPromptText: {
+    fontSize: 12.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  reviewsLoadingWrap: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  reviewsLoadingText: {
+    fontSize: 12.5,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  reviewsEmptyWrap: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  reviewsEmptyText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   sectionAccent: {
     width: 3, height: 16, borderRadius: 2, backgroundColor: C.primary,
@@ -2444,6 +3002,31 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: '#5F7A6E',
     marginTop: 2
+  },
+  paymentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
+    backgroundColor: '#F3F5F4',
+    borderWidth: 1,
+    borderColor: '#E8EFEA',
+    borderRadius: 12,
+  },
+  paymentBtnActive: {
+    backgroundColor: '#2F5D50',
+    borderColor: '#2F5D50',
+  },
+  paymentBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2F5D50',
+  },
+  paymentBtnTextActive: {
+    color: '#FFF',
+    fontWeight: '800',
   },
   submitOrderBtn: {
     backgroundColor: '#0A5C43',

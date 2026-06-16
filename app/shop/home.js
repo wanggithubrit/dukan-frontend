@@ -7,22 +7,22 @@ import { usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Linking,
-    Platform,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Animated,
+  Dimensions,
+  Linking,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppUpdateModal from '../../components/AppUpdateModal';
-import { useTheme, getTheme } from '../../utils/theme';
+import { getTheme, useTheme } from '../../utils/theme';
 
 import AdBanner from '../../components/AdBanner';
 import { registerForPushNotificationsAsync } from '../../utils/pushNotifications';
@@ -394,7 +394,7 @@ const ShopCard = React.memo(({ item, onPress }) => {
         {/* Body Section */}
         <View style={s.cardBody}>
           <Text style={s.cardName} numberOfLines={1}>
-            {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{item.name}
+            {isProPlus ? ' ' : isPro ? '' : ''}{item.name}
           </Text>
 
           {catKey && catKey !== 'All' && (
@@ -559,7 +559,7 @@ const OpenNowCard = React.memo(({ item, onPress }) => {
 
         <View style={s.openNowBody}>
           <Text style={s.openNowName} numberOfLines={1}>
-            {isProPlus ? '✅ ' : isPro ? '⭐ ' : ''}{item.name}
+            {isProPlus ? '' : isPro ? '⭐ ' : ''}{item.name}
           </Text>
           {catKey && catKey !== 'All' && (
             <Text style={[s.openNowCat, { color: catColor.icon }]}>{catKey}</Text>
@@ -1533,6 +1533,12 @@ export default function Home() {
             icon: 'heart',
             iconOutline: 'heart-outline',
             label: 'Saved',
+          },
+          {
+            route: '/cart',
+            icon: 'cart',
+            iconOutline: 'cart-outline',
+            label: 'Cart',
           },
           {
             route: '/profile',
