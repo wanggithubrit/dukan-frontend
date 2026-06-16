@@ -1254,15 +1254,12 @@ export default function MerchantHome() {
             <Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>My Dashboard</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.tabItem}
-            onPress={async () => {
-              await AsyncStorage.setItem('role', 'customer');
-              router.replace('/shop/home');
-            }}
+            style={[styles.tabItem, activeTab === 'marketplace' && styles.tabItemActive]}
+            onPress={() => setActiveTab('marketplace')}
             activeOpacity={0.8}
           >
-            <Ionicons name="swap-horizontal-outline" size={16} color="#5A7470" />
-            <Text style={styles.tabText}>Switch to Customer</Text>
+            <Ionicons name="search-outline" size={16} color={activeTab === 'marketplace' ? '#fff' : '#5A7470'} />
+            <Text style={[styles.tabText, activeTab === 'marketplace' && styles.tabTextActive]}>Discover Local</Text>
           </TouchableOpacity>
         </View>
 
