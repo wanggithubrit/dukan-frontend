@@ -570,6 +570,14 @@ export default function MerchantProfile() {
 
         <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Business Settings</Text></View>
         <View style={styles.settingsCard}>
+          <Setting 
+            icon="swap-horizontal-outline" 
+            text="Switch to Customer Panel" 
+            onPress={async () => {
+              await AsyncStorage.setItem('role', 'customer');
+              router.replace('/shop/home');
+            }} 
+          />
           <Setting icon="create-outline" text="Edit Shop Profile" onPress={() => router.push('/merchant/edit-shop')} />
           <Setting icon="images-outline" text="Add Shop Photos" onPress={() => router.push('/merchant/create-post')} />
           <Setting icon="trash-outline" text="Delete Account" color="#FF4B4B" onPress={() => setUIKey('showDelete', true)} />

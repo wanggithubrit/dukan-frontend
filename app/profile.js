@@ -386,6 +386,29 @@ export default function Profile() {
           <Text style={s.sectionLabel}>ACCOUNT</Text>
           <View style={s.card}>
             <MenuRow
+              icon="swap-horizontal-outline"
+              iconColor="#0A5C43"
+              iconBg="rgba(10,92,67,0.15)"
+              label="Switch to Merchant Panel"
+              sublabel={user?.has_merchant_account ? "Manage your products and orders" : "Create a merchant account to sell"}
+              onPress={async () => {
+                if (user?.has_merchant_account) {
+                  await AsyncStorage.setItem('role', 'merchant');
+                  router.replace('/merchant/home');
+                } else {
+                  Alert.alert(
+                    "Merchant Account Required",
+                    "You don't have a merchant account yet. Would you like to create one?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Register", onPress: () => router.push('/merchant-signup') }
+                    ]
+                  );
+                }
+              }}
+            />
+            <View style={s.divider} />
+            <MenuRow
               icon="person-outline"
               iconColor="#2F5D50"
               iconBg="rgba(47,93,80,0.15)"
